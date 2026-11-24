@@ -1,0 +1,2549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BioLab Móvil — Banco de Estudio Universitario</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* Tipografía base y comportamiento táctil mobile-first */
+    :root {
+      color-scheme: light;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #eef3f0;
+      color: #0f172a;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+    }
+
+    /* Utilidades de animación 3D para flashcards */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+
+    .preserve-3d {
+      transform-style: preserve-3d;
+    }
+
+    .backface-hidden {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+
+    /* Scrollbar sutil en filtros horizontales */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-up {
+      animation: fadeSlideUp 0.24s ease-out both;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start sm:py-4">
+  <!-- Contenedor tipo aplicación móvil en pantallas grandes y fluido en celular -->
+  <div
+    id="app-shell"
+    class="w-full max-w-md sm:max-w-lg min-h-screen sm:min-h-[88vh] bg-slate-50 sm:rounded-[28px] sm:shadow-2xl sm:border sm:border-emerald-950/10 flex flex-col relative overflow-x-hidden"
+  >
+    <!-- Encabezado superior fijo de la app -->
+    <header class="sticky top-0 z-30 bg-emerald-950 text-white px-4 pt-4 pb-3.5 shadow-md">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <!-- Logo SVG de Biología Celular -->
+          <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 36 36" class="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="18" cy="18" rx="13" ry="9" transform="rotate(-24 18 18)" />
+              <circle cx="18" cy="18" r="4.2" fill="currentColor" class="text-teal-300" />
+              <circle cx="10.5" cy="14" r="1.5" fill="currentColor" class="text-amber-300" stroke="none" />
+              <circle cx="25.5" cy="22" r="1.5" fill="currentColor" class="text-amber-300" stroke="none" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-base font-extrabold tracking-tight truncate">BioLab Móvil</h1>
+            <p class="text-[11px] text-emerald-200/90 font-medium truncate">
+              Biología Universitaria • Estudio Interactivo
+            </p>
+          </div>
+        </div>
+
+        <!-- Indicador rápido de dominio de flashcards -->
+        <div
+      id="header-mastery-badge"
+      class="px-2.5 py-1.5 rounded-xl bg-emerald-900/90 border border-emerald-700/60 text-[11px] font-semibold text-emerald-100 shrink-0"
+      title="Flashcards marcadas como dominadas"
+    >
+      0/36 dom.
+    </div>
+  </div>
+
+  <!-- Sub-barra dinámica según pestaña activa -->
+  <div id="header-subbar" class="mt-3 pt-2.5 border-t border-emerald-800/70 flex items-center justify-between text-xs text-emerald-100/90">
+    <span>Modo: Conceptos y Diagramas</span>
+    <span class="text-emerald-300 font-semibold">4 Bloques Temáticos</span>
+  </div>
+</header>
+
+<!-- Área de contenido principal desplazable -->
+<main id="main-content" class="flex-1 px-4 pt-4 pb-28 space-y-4">
+  <!-- Renderizado dinámico mediante JavaScript -->
+</main>
+
+    <!-- Barra de notificación / mensaje no invasivo (reemplaza alert/confirm) -->
+    <div
+      id="toast-banner"
+      role="status"
+      aria-live="polite"
+      class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[90%] bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-2xl shadow-xl border border-slate-700/80 hidden transition-all"
+    >
+    </div>
+
+    <!-- Barra inferior táctil fija con 4 pestañas -->
+    <nav
+      aria-label="Navegación principal"
+      class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md sm:max-w-lg z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 sm:rounded-b-[28px] px-2 py-1.5 shadow-[0_-6px_24px_rgba(15,23,42,0.08)]"
+    >
+      <div class="grid grid-cols-4 gap-1">
+        <button
+          type="button"
+          data-tab="conceptos"
+          class="nav-tab flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-xs font-bold transition-all min-h-[54px] bg-emerald-50 text-emerald-800"
+        >
+          <svg viewBox="0 0 24 24" class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Conceptos</span>
+        </button>
+
+        <button
+          type="button"
+          data-tab="quiz"
+          class="nav-tab flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-xs font-semibold transition-all min-h-[54px] text-slate-500 hover:text-slate-800 hover:bg-slate-100/80"
+        >
+          <svg viewBox="0 0 24 24" class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Quiz (60)</span>
+        </button>
+
+        <button
+          type="button"
+          data-tab="flashcards"
+          class="nav-tab flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-xs font-semibold transition-all min-h-[54px] text-slate-500 hover:text-slate-800 hover:bg-slate-100/80"
+        >
+          <svg viewBox="0 0 24 24" class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Flashcards</span>
+        </button>
+
+        <button
+          type="button"
+          data-tab="trampas"
+          class="nav-tab flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-xs font-semibold transition-all min-h-[54px] text-slate-500 hover:text-slate-800 hover:bg-slate-100/80"
+        >
+          <svg viewBox="0 0 24 24" class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Trampas</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. ILUSTRACIONES VECTORIALES SVG DIDÁCTICAS
+       ========================================================================= */
+    const SVG_DIAGRAMS = {
+      celulaMembrana: `
+        <div class="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-900">Diagrama: Célula y Bicapa Anfipática</span>
+            <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Estructura &amp; Función</span>
+          </div>
+          <svg viewBox="0 0 360 132" class="w-full h-auto rounded-xl bg-white border border-emerald-100" role="img" aria-label="Diagrama de célula eucariota y membrana plasmática anfipática">
+            <!-- Mitad izquierda: Esquema celular comparativo -->
+            <rect x="8" y="8" width="164" height="116" rx="12" fill="#f0fdf4" stroke="#bbf7d0" />
+            <text x="90" y="23" text-anchor="middle" font-size="9.5" font-weight="700" fill="#065f46">Célula Eucariota</text>
+            <!-- Núcleo con membrana -->
+            <circle cx="62" cy="68" r="21" fill="#dbeafe" stroke="#2563eb" stroke-width="1.8" />
+            <circle cx="62" cy="68" r="7" fill="#93c5fd" />
+            <text x="62" y="99" text-anchor="middle" font-size="8" fill="#1e3a8a" font-weight="600">Núcleo (ADN)</text>
+            <!-- Mitocondria -->
+            <ellipse cx="122" cy="52" rx="22" ry="11" fill="#fef3c7" stroke="#d97706" stroke-width="1.6" />
+            <path d="M106 52 Q112 46 118 52 T130 52 T138 52" fill="none" stroke="#b45309" stroke-width="1.3" />
+            <text x="122" y="72" text-anchor="middle" font-size="7.5" fill="#92400e" font-weight="600">Mitocondria</text>
+            <!-- Cloroplasto (vegetal) -->
+            <ellipse cx="122" cy="92" rx="22" ry="11" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6" stroke-dasharray="3,2" />
+            <circle cx="115" cy="92" r="3.5" fill="#22c55e" />
+            <circle cx="123" cy="92" r="3.5" fill="#22c55e" />
+            <circle cx="131" cy="92" r="3.5" fill="#22c55e" />
+            <text x="122" y="113" text-anchor="middle" font-size="7.5" fill="#166534" font-weight="600">Cloroplasto (Veg.)</text>
+
+            <!-- Mitad derecha: Bicapa fosfolipídica anfipática -->
+            <rect x="180" y="8" width="172" height="116" rx="12" fill="#f8fafc" stroke="#cbd5e1" />
+            <text x="266" y="23" text-anchor="middle" font-size="9.5" font-weight="700" fill="#0f172a">Bicapa Anfipática</text>
+            <text x="266" y="34" text-anchor="middle" font-size="7.5" fill="#475569">Cabezas hidrófilas • Colas hidrófobas</text>
+
+            <!-- Dibujo de fosfolípidos superiores e inferiores -->
+            <g id="bilayer-group"></g>
+            <text x="266" y="115" text-anchor="middle" font-size="7.5" fill="#0f766e" font-weight="600">Barrera selectiva y transporte regulado</text>
+          </svg>
+        </div>
+      `,
+
+      aguaPuentes: `
+        <div class="bg-sky-50/80 border border-sky-200/80 rounded-2xl p-3">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-sky-950">Diagrama: Polaridad y Puentes de Hidrógeno</span>
+            <span class="text-[10px] font-semibold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-full">H₂O • Propiedades</span>
+          </div>
+          <svg viewBox="0 0 360 128" class="w-full h-auto rounded-xl bg-white border border-sky-100" role="img" aria-label="Polaridad de la molécula de agua y puentes de hidrógeno">
+            <!-- Molécula de agua izquierda -->
+            <circle cx="84" cy="56" r="18" fill="#bae6fd" stroke="#0284c7" stroke-width="2" />
+            <text x="84" y="60" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">O</text>
+            <text x="84" y="32" text-anchor="middle" font-size="9" font-weight="700" fill="#dc2626">δ⁻</text>
+
+            <circle cx="54" cy="88" r="11" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.6" />
+            <text x="54" y="91.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#854d0e">H</text>
+            <text x="36" y="91" text-anchor="middle" font-size="8.5" font-weight="700" fill="#16a34a">δ⁺</text>
+
+            <circle cx="114" cy="88" r="11" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.6" />
+            <text x="114" y="91.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#854d0e">H</text>
+            <text x="132" y="91" text-anchor="middle" font-size="8.5" font-weight="700" fill="#16a34a">δ⁺</text>
+
+            <line x1="71" y1="70" x2="61" y2="80" stroke="#0f172a" stroke-width="2" />
+            <line x1="97" y1="70" x2="107" y2="80" stroke="#0f172a" stroke-width="2" />
+
+            <!-- Puente de hidrógeno punteado -->
+            <line x1="125" y1="88" x2="212" y2="56" stroke="#0ea5e9" stroke-width="2" stroke-dasharray="4,3" />
+            <rect x="135" y="54" width="74" height="16" rx="8" fill="#e0f2fe" />
+            <text x="172" y="65" text-anchor="middle" font-size="7.5" font-weight="700" fill="#0369a1">Puente de H</text>
+
+            <!-- Molécula de agua derecha -->
+            <circle cx="230" cy="56" r="18" fill="#bae6fd" stroke="#0284c7" stroke-width="2" />
+            <text x="230" y="60" text-anchor="middle" font-size="11" font-weight="800" fill="#0369a1">O</text>
+            <text x="230" y="32" text-anchor="middle" font-size="9" font-weight="700" fill="#dc2626">δ⁻</text>
+
+            <circle cx="204" cy="88" r="11" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.6" />
+            <text x="204" y="91.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#854d0e">H</text>
+
+            <circle cx="258" cy="88" r="11" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.6" />
+            <text x="258" y="91.5" text-anchor="middle" font-size="9.5" font-weight="700" fill="#854d0e">H</text>
+
+            <line x1="219" y1="70" x2="210" y2="79" stroke="#0f172a" stroke-width="2" />
+            <line x1="241" y1="70" x2="250" y2="79" stroke="#0f172a" stroke-width="2" />
+
+            <!-- Recuadro de propiedades -->
+            <rect x="278" y="18" width="74" height="92" rx="10" fill="#f0f9ff" stroke="#bae6fd" />
+            <text x="315" y="33" text-anchor="middle" font-size="7.5" font-weight="800" fill="#0c4a6e">Efectos clave</text>
+            <text x="315" y="47" text-anchor="middle" font-size="7" fill="#0369a1">• Cohesión</text>
+            <text x="315" y="59" text-anchor="middle" font-size="7" fill="#0369a1">• Adhesión</text>
+            <text x="315" y="71" text-anchor="middle" font-size="7" fill="#0369a1">• Alto Cp / calor</text>
+            <text x="315" y="83" text-anchor="middle" font-size="7" fill="#0369a1">• Hielo flota</text>
+            <text x="315" y="95" text-anchor="middle" font-size="7" fill="#0369a1">• Solvente</text>
+          </svg>
+        </div>
+      `,
+
+      biomoleculasOrigen: `
+        <div class="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-amber-950">Diagrama: Biomoléculas y Evolución Química</span>
+            <span class="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">Monómeros &amp; Origen</span>
+          </div>
+          <svg viewBox="0 0 360 124" class="w-full h-auto rounded-xl bg-white border border-amber-100" role="img" aria-label="Flujo de monómeros a polímeros y síntesis prebiótica">
+            <!-- Monómeros a polímeros -->
+            <rect x="10" y="14" width="102" height="42" rx="9" fill="#fef3c7" stroke="#f59e0b" />
+            <text x="61" y="30" text-anchor="middle" font-size="7.5" font-weight="800" fill="#92400e">Aminoácido</text>
+            <text x="61" y="43" text-anchor="middle" font-size="7" fill="#78350f">→ Enlace peptídico →</text>
+
+            <rect x="122" y="14" width="112" height="42" rx="9" fill="#dcfce7" stroke="#22c55e" />
+            <text x="178" y="30" text-anchor="middle" font-size="7.5" font-weight="800" fill="#166534">Nucleótido</text>
+            <text x="178" y="43" text-anchor="middle" font-size="7" fill="#14532d">Base + Azúcar 5C + P</text>
+
+            <rect x="244" y="14" width="106" height="42" rx="9" fill="#fce7f3" stroke="#ec4899" />
+            <text x="297" y="30" text-anchor="middle" font-size="7.5" font-weight="800" fill="#9d174d">Glúcidos y Lípidos</text>
+            <text x="297" y="43" text-anchor="middle" font-size="7" fill="#831843">Energía, estructura, ATP</text>
+
+            <!-- Línea inferior: Miller-Urey y atmósfera -->
+            <rect x="10" y="66" width="340" height="46" rx="10" fill="#f8fafc" stroke="#cbd5e1" />
+            <text x="24" y="83" font-size="8" font-weight="800" fill="#0f172a">Miller y Urey (Tierra primitiva):</text>
+            <text x="24" y="97" font-size="7.3" fill="#334155">Gases simples + descargas eléctricas → síntesis de moléculas orgánicas (ej. aminoácidos).</text>
+            <text x="24" y="108" font-size="7" font-weight="600" fill="#0f766e">Atmósfera reductora inicial → fotosíntesis libera O₂ → atmósfera oxidante + biogénesis.</text>
+          </svg>
+        </div>
+      `,
+
+      metabolismoDivision: `
+        <div class="bg-teal-50/80 border border-teal-200/80 rounded-2xl p-3">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-teal-950">Diagrama: Rutas Energéticas y División Celular</span>
+            <span class="text-[10px] font-semibold text-teal-800 bg-teal-100 px-2 py-0.5 rounded-full">ATP • Mitosis / Meiosis</span>
+          </div>
+          <svg viewBox="0 0 360 128" class="w-full h-auto rounded-xl bg-white border border-teal-100" role="img" aria-label="Rutas de respiración celular, fotosíntesis y división celular">
+            <!-- Respiración celular -->
+            <rect x="10" y="12" width="166" height="104" rx="10" fill="#f0fdfa" stroke="#5eead4" />
+            <text x="93" y="26" text-anchor="middle" font-size="8" font-weight="800" fill="#115e59">Respiración Celular</text>
+            <rect x="20" y="33" width="146" height="18" rx="6" fill="#ccfbf1" />
+            <text x="93" y="45" text-anchor="middle" font-size="7.3" font-weight="700" fill="#134e4a">1. Glucólisis → Citosol</text>
+            <rect x="20" y="56" width="146" height="18" rx="6" fill="#fef3c7" />
+            <text x="93" y="68" text-anchor="middle" font-size="7.3" font-weight="700" fill="#92400e">2. Ciclo de Krebs → Matriz</text>
+            <rect x="20" y="79" width="146" height="28" rx="6" fill="#dbeafe" />
+            <text x="93" y="91" text-anchor="middle" font-size="7.2" font-weight="700" fill="#1e40af">3. Fosforilación oxidativa</text>
+            <text x="93" y="102" text-anchor="middle" font-size="6.8" fill="#1d4ed8">(Mayor ATP • Tilacoides: fase lum. → O₂)</text>
+
+            <!-- Ciclo celular y división -->
+            <rect x="184" y="12" width="166" height="104" rx="10" fill="#fff7ed" stroke="#fdba74" />
+            <text x="267" y="26" text-anchor="middle" font-size="8" font-weight="800" fill="#9a3412">Ciclo y División Celular</text>
+            <text x="194" y="42" font-size="7.2" fill="#7c2d12" font-weight="700">• Fase S:</text>
+            <text x="228" y="42" font-size="7" fill="#431407">Duplica el ADN</text>
+            <text x="194" y="56" font-size="7.2" fill="#7c2d12" font-weight="700">• Mitosis:</text>
+            <text x="228" y="56" font-size="7" fill="#431407">2 hijas iguales (2n)</text>
+            <text x="194" y="70" font-size="7.2" fill="#7c2d12" font-weight="700">• Metafase:</text>
+            <text x="234" y="70" font-size="7" fill="#431407">Plano ecuatorial</text>
+            <text x="194" y="84" font-size="7.2" fill="#7c2d12" font-weight="700">• Meiosis:</text>
+            <text x="229" y="84" font-size="7" fill="#431407">4 haploides (n) distintas</text>
+            <text x="194" y="100" font-size="6.8" fill="#9a3412" font-weight="600">Apoptosis = programada ≠ Necrosis</text>
+          </svg>
+        </div>
+      `
+    };
+
+    /* =========================================================================
+       2. MÓDULOS DE CONCEPTOS + AMPLIACIÓN UNIVERSITARIA
+       ========================================================================= */
+    const CONCEPT_MODULES = [
+      {
+        id: 'celula',
+        title: 'Organización Celular, Orgánulos y Citoesqueleto',
+        badge: 'Célula',
+        diagramKey: 'celulaMembrana',
+        keyPoints: [
+          'La célula es el nivel más simple de organización biológica considerado unidad de vida.',
+          'Todas las células poseen ADN, membrana plasmática y ribosomas; no todas tienen núcleo, pared celular o cloroplastos.',
+          'El microscopio óptico usa luz y permite observar células vivas.',
+          'Las células eucariontes tienen núcleo delimitado por membrana; las procariontes no.',
+          'Los ribosomas sintetizan proteínas (libres en el citosol o asociados al RER); el retículo endoplasmático liso (REL) desintoxica fármacos y venenos.',
+          'Mitocondrias y cloroplastos tienen ADN y ribosomas propios, a diferencia del sistema de endomembranas.',
+          'Los microtúbulos interactúan con la dineína para el movimiento de cilios y flagelos; los cloroplastos son propios de células vegetales y realizan la fotosíntesis.'
+        ],
+        universityExtra: [
+          {
+            subtitle: 'Teoría endosimbiótica y compartimentalización',
+            text: 'Que mitocondrias y cloroplastos posean ADN circular propio y ribosomas respalda su origen evolutivo a partir de procariontes ancestrales integrados en células huésped, permitiendo compartimentalizar rutas metabólicas sensibles sin interferir con el citosol.'
+          },
+          {
+            subtitle: 'Relación estructura-función en endomembranas y citoesqueleto',
+            text: 'Las proteínas destinadas a secreción o membrana se traducen en ribosomas asociados al RER, mientras que los microtúbulos actúan como rieles polares donde proteínas motoras como la dineína generan deslizamiento mecánico en cilios y flagelos.'
+          }
+        ]
+      },
+      {
+        id: 'quimica_agua',
+        title: 'Átomo, Enlaces Químicos y Propiedades del Agua',
+        badge: 'Química y Agua',
+        diagramKey: 'aguaPuentes',
+        keyPoints: [
+          'El átomo es la menor cantidad de un elemento químico que conserva sus propiedades. Tiene protones (+), neutrones (0) en el núcleo y electrones (-) orbitando.',
+          'Número atómico (Z) = cantidad de protones; número de masa (A) = protones + neutrones.',
+          'Los electrones determinan las reacciones químicas al ganarse, perderse o compartirse.',
+          'Enlace iónico: transferencia de electrones y atracción por cargas opuestas. Enlace covalente: compartición de electrones; más fuerte y estable en sistemas biológicos (en agua, los iónicos pueden disociarse o debilitarse).',
+          'El agua es polar porque el oxígeno atrae más los electrones compartidos (δ⁻ en O, δ⁺ en H), formando puentes de hidrógeno.',
+          'Propiedades del agua: cohesión (unión entre moléculas de agua), adhesión (unión a superficies polares, ej. vasos conductores), alta capacidad calorífica, alto calor de evaporación, densidad anómala (el hielo flota y aísla) y versatilidad como solvente.'
+        ],
+        universityExtra: [
+          {
+            subtitle: 'Energía de enlace y microentorno acuoso',
+            text: 'Aunque un puente de hidrógeno individual es débil frente a un enlace covalente, su acción cooperativa estabiliza estructuras tridimensionales de macromoléculas y amortigua cambios térmicos en organismos y ambientes acuáticos.'
+          },
+          {
+            subtitle: 'Solventación de iones y moléculas polares',
+            text: 'Las esferas de hidratación alrededor de iones y grupos polares reducen las interacciones electrostáticas directas entre solutos, facilitando su difusión y las reacciones metabólicas en medio acuoso.'
+          }
+        ]
+      },
+      {
+        id: 'biomoleculas_origen',
+        title: 'Biomoléculas, ATP y Origen de la Vida',
+        badge: 'Biomoléculas y Origen',
+        diagramKey: 'biomoleculasOrigen',
+        keyPoints: [
+          'Hidratos de carbono (C, H, O): monosacáridos, disacáridos y polisacáridos; aportan energía inmediata (glucosa como combustible inmediato) y función estructural.',
+          'Lípidos: hidrofóbicos; almacenan energía (ricos en enlaces C–H, más del doble de energía por gramo que hidratos de carbono), forman membranas (fosfolípidos anfipáticos) y actúan como mensajeros químicos.',
+          'Proteínas: formadas por aminoácidos unidos por enlaces peptídicos; niveles primario, secundario, terciario y cuaternario. Su estructura tridimensional define su función (se pierde al desnaturalizarse).',
+          'Ácidos nucleicos: formados por nucleótidos (base nitrogenada + azúcar de 5 carbonos + fosfato); almacenan y transmiten información genética. El ATP es un nucleótido que actúa como moneda energética celular.',
+          'Origen de la vida: la Tierra se formó hace ~4.600 millones de años; atmósfera primitiva reductora (sin O₂ libre) que pasó a oxidante por organismos fotosintéticos. La biogénesis explica la vida actual desde vida preexistente junto con la evolución química.',
+          'Miller y Urey simularon condiciones de la Tierra primitiva (gases y descargas eléctricas) y demostraron la síntesis de moléculas orgánicas como aminoácidos a partir de sustancias simples.'
+        ],
+        universityExtra: [
+          {
+            subtitle: 'Enzimas, catálisis y desnaturalización proteica',
+            text: 'Muchas proteínas actúan como catalizadores biológicos (enzimas) cuya especificidad depende de la geometría de su sitio activo: alteraciones severas de temperatura o pH desnaturalizan la estructura terciaria/cuaternaria y anulan la catálisis.'
+          },
+          {
+            subtitle: 'Acoplamiento energético vía ATP',
+            text: 'La hidrólisis de los enlaces fosfato del ATP libera energía útil para acoplar reacciones endergónicas celulares, como el transporte activo o la síntesis de macromoléculas.'
+          }
+        ]
+      },
+      {
+        id: 'metabolismo_division',
+        title: 'Transporte, Metabolismo, Fotosíntesis y División Celular',
+        badge: 'Metabolismo y División',
+        diagramKey: 'metabolismoDivision',
+        keyPoints: [
+          'Transporte pasivo (ej. difusión facilitada): a favor del gradiente sin gastar ATP. Transporte activo: en contra del gradiente usando ATP. Fagocitosis: incorpora partículas sólidas con pseudópodos.',
+          'Metabolismo: todas las reacciones químicas de la célula. Glucólisis ocurre en el citosol; ciclo de Krebs en la matriz mitocondrial; mayor producción de ATP en fosforilación oxidativa.',
+          'Fotosíntesis: la fase luminosa ocurre en los tilacoides y el O₂ liberado proviene del agua.',
+          'División bacteriana: fisión binaria. Ciclo celular eucariota: el ADN se duplica en la fase S para obtener dos copias idénticas antes de dividirse.',
+          'Mitosis: genera células hijas genéticamente equivalentes para crecimiento y reparación; cromosomas alineados en el plano ecuatorial en metafase.',
+          'Meiosis: ocurre en células germinales (gónadas) y da cuatro células haploides (n) genéticamente distintas a partir de una diploide (2n). Error de separación: no disyunción.',
+          'Apoptosis: muerte celular programada y controlada, a diferencia de la necrosis (ruptura accidental y desordenada).'
+        ],
+        universityExtra: [
+          {
+            subtitle: 'Gradientes electroquímicos, ósmosis y quimiósmosis',
+            text: 'El transporte activo genera gradientes de concentración y carga (electroquímicos), mientras que el movimiento neto de agua a través de membrana semipermeable (ósmosis) responde a diferencias de tonicidad. En la fosforilación oxidativa, la cadena de electrones impulsa protones para sintetizar ATP por quimiósmosis.'
+          },
+          {
+            subtitle: 'Checkpoints del ciclo celular y variabilidad meiótica',
+            text: 'Los puntos de control (checkpoints) verifican la integridad del ADN y la correcta adhesión al huso antes de avanzar. Durante la meiosis, el entrecruzamiento (crossing-over) entre cromosomas homólogos y la segregación independiente amplían la variabilidad genética; la no disyunción produce aneuploidías.'
+          }
+        ]
+      }
+    ];
+
+    /* =========================================================================
+       3. BANCO DE 50 PREGUNTAS DE QUIZ (MCQ, V/F Y DESARROLLO CORTO)
+       ========================================================================= */
+    const QUIZ_QUESTIONS = [
+      // 1-25: Opción múltiple
+      { id: 1, type: 'mcq', topic: 'celula', question: '¿Cuál es el nivel más simple de organización biológica que se considera unidad de vida?', options: ['Átomo', 'Orgánulo', 'Tejido', 'Célula'], answer: 'Célula', explanation: 'La célula es la unidad básica de organización y la unidad mínima que se considera vida.' },
+      { id: 2, type: 'mcq', topic: 'celula', question: '¿Qué tipo de microscopio permite observar células vivas?', options: ['Microscopio electrónico', 'Microscopio óptico', 'Microscopio de barrido', 'Ultracentrífuga'], answer: 'Microscopio óptico', explanation: 'El microscopio óptico utiliza luz y permite trabajar con muestras vivas.' },
+      { id: 3, type: 'mcq', topic: 'celula', question: '¿Qué característica distingue fundamentalmente a una célula eucarionte de una procarionte?', options: ['La capacidad de realizar metabolismo', 'La localización del DNA dentro de un núcleo limitado por membrana', 'La existencia de una membrana plasmática', 'La presencia de ribosomas'], answer: 'La localización del DNA dentro de un núcleo limitado por membrana', explanation: 'Las células eucariontes poseen un núcleo rodeado por membrana; las procariontes no.' },
+      { id: 4, type: 'mcq', topic: 'celula', question: '¿Qué organelo es responsable de la síntesis de proteínas?', options: ['Núcleo', 'Lisosoma', 'Ribosoma', 'Mitocondria'], answer: 'Ribosoma', explanation: 'Los ribosomas son las estructuras celulares donde se lleva a cabo la síntesis de proteínas.' },
+      { id: 5, type: 'mcq', topic: 'celula', question: '¿Cuál es la función principal de la membrana plasmática?', options: ['Producir energía', 'Sintetizar proteínas', 'Actuar como barrera selectiva', 'Almacenar ADN'], answer: 'Actuar como barrera selectiva', explanation: 'La membrana plasmática regula de manera selectiva el intercambio de sustancias entre la célula y su entorno.' },
+      { id: 6, type: 'mcq', topic: 'celula', question: '¿Cuál de las siguientes funciones está asociada específicamente con el retículo endoplasmático liso?', options: ['Producción de ribosomas', 'Síntesis de proteínas de secreción', 'Desintoxicación de fármacos y venenos', 'Digestión de macromoléculas'], answer: 'Desintoxicación de fármacos y venenos', explanation: 'El retículo endoplasmático liso participa en procesos de desintoxicación de fármacos y venenos.' },
+      { id: 7, type: 'mcq', topic: 'celula', question: '¿Qué característica de las mitocondrias y cloroplastos los distingue de los demás orgánulos del sistema de endomembranas?', options: ['Están rodeados por una sola membrana', 'Sus proteínas provienen exclusivamente del núcleo', 'Se originan a partir del retículo endoplasmático', 'Contienen su propio DNA y ribosomas'], answer: 'Contienen su propio DNA y ribosomas', explanation: 'Mitocondrias y cloroplastos poseen DNA y ribosomas propios, a diferencia de los orgánulos del sistema de endomembranas.' },
+      { id: 8, type: 'mcq', topic: 'celula', question: '¿Qué componente del citoesqueleto es responsable del movimiento de los cilios y flagelos mediante la interacción con la proteína dineína?', options: ['Microtúbulos', 'Microfilamentos', 'Fibras de colágeno', 'Filamentos intermedios'], answer: 'Microtúbulos', explanation: 'Los cilios y flagelos contienen microtúbulos; la dineína interactúa con ellos para producir el movimiento.' },
+      { id: 9, type: 'mcq', topic: 'celula', question: '¿Qué estructura está presente solo en células vegetales?', options: ['Núcleo', 'Ribosomas', 'Cloroplastos', 'Mitocondrias'], answer: 'Cloroplastos', explanation: 'Los cloroplastos son orgánulos característicos de las células vegetales y participan en la fotosíntesis.' },
+      { id: 10, type: 'mcq', topic: 'celula', question: '¿Qué tienen en común todas las células?', options: ['Núcleo definido', 'ADN, membrana plasmática y ribosomas', 'Pared celular', 'Cloroplastos'], answer: 'ADN, membrana plasmática y ribosomas', explanation: 'Todas las células poseen ADN, membrana plasmática y ribosomas, aunque no todas tienen núcleo, pared celular o cloroplastos.' },
+      { id: 11, type: 'mcq', topic: 'quimica_agua', question: '¿Cuáles son las partículas subatómicas del átomo y qué cargas tienen?', options: ['Protones (+), neutrones (0) y electrones (-)', 'Protones (-), neutrones (+) y electrones (0)', 'Solo protones (+) y electrones (-)', 'Neutrones (+) y electrones (-)'], answer: 'Protones (+), neutrones (0) y electrones (-)', explanation: 'Protones y neutrones están en el núcleo; los electrones orbitan alrededor del núcleo.' },
+      { id: 12, type: 'mcq', topic: 'quimica_agua', question: '¿Qué determina el número atómico (Z)?', options: ['La cantidad de protones', 'La cantidad de neutrones', 'Protones + neutrones', 'La masa molecular'], answer: 'La cantidad de protones', explanation: 'El número atómico (Z) está determinado exclusivamente por la cantidad de protones del núcleo.' },
+      { id: 13, type: 'mcq', topic: 'quimica_agua', question: '¿Cómo se forma un enlace iónico?', options: ['Compartiendo pares de electrones', 'Por transferencia de uno o más electrones', 'Por atracción entre hidrógenos', 'Por unión de dos núcleos'], answer: 'Por transferencia de uno o más electrones', explanation: 'Se forman iones positivos y negativos que se atraen por sus cargas opuestas.' },
+      { id: 14, type: 'mcq', topic: 'quimica_agua', question: '¿Qué enlace suele ser más fuerte en sistemas biológicos y por qué?', options: ['El enlace iónico, porque no usa electrones', 'El enlace covalente, porque comparte electrones y es estable en medio acuoso', 'El puente de hidrógeno, porque es covalente', 'Ninguno, todos tienen igual fuerza'], answer: 'El enlace covalente, porque comparte electrones y es estable en medio acuoso', explanation: 'El enlace covalente es en general más fuerte y estable; los enlaces iónicos pueden debilitarse o disociarse en agua.' },
+      { id: 15, type: 'mcq', topic: 'quimica_agua', question: '¿Por qué el agua es una molécula polar?', options: ['Porque no tiene enlaces', 'Porque el oxígeno atrae con más fuerza los electrones compartidos', 'Porque sus hidrógenos son negativos', 'Porque carece de carga parcial'], answer: 'Porque el oxígeno atrae con más fuerza los electrones compartidos', explanation: 'Esto genera una región parcialmente negativa cerca del oxígeno y parcialmente positiva cerca de los hidrógenos.' },
+      { id: 16, type: 'mcq', topic: 'quimica_agua', question: '¿Qué propiedad del agua permite que el hielo flote y aísle lagos en invierno?', options: ['Cohesión', 'Densidad anómala', 'Capacidad solvente', 'Tensión superficial nula'], answer: 'Densidad anómala', explanation: 'Al congelarse, el agua forma una estructura abierta menos densa que el agua líquida.' },
+      { id: 17, type: 'mcq', topic: 'quimica_agua', question: '¿Qué propiedad del agua explica su función refrigerante en la sudoración y transpiración?', options: ['Alto calor de evaporación', 'Adhesión a lípidos', 'Densidad anómala', 'Enlace iónico'], answer: 'Alto calor de evaporación', explanation: 'Pasar de líquido a vapor requiere mucha energía para romper puentes de hidrógeno entre moléculas.' },
+      { id: 18, type: 'mcq', topic: 'biomoleculas_origen', question: 'Glucosa: ¿para qué sirve principalmente?', options: ['Como combustible celular inmediato', 'Como reserva genética', 'Como fosfolípido de membrana', 'Como enzima proteica'], answer: 'Como combustible celular inmediato', explanation: 'Las células obtienen energía rápidamente a partir de la glucosa.' },
+      { id: 19, type: 'mcq', topic: 'biomoleculas_origen', question: '¿Por qué los lípidos almacenan tanta energía por gramo?', options: ['Por su estructura rica en enlaces carbono-hidrógeno', 'Porque son muy solubles en agua', 'Porque tienen enlaces peptídicos', 'Porque son monosacáridos'], answer: 'Por su estructura rica en enlaces carbono-hidrógeno', explanation: 'Tienen alta densidad energética y almacenan más del doble de energía por gramo que los hidratos de carbono.' },
+      { id: 20, type: 'mcq', topic: 'metabolismo_division', question: '¿Cómo se denominan las moléculas con una región hidrófila y otra hidrófoba, como los fosfolípidos?', options: ['Apolares', 'Anfipáticas', 'Iónicas', 'Polisacáridos'], answer: 'Anfipáticas', explanation: 'Las moléculas anfipáticas tienen afinidad por el agua en una región y repelen el agua en otra.' },
+      { id: 21, type: 'mcq', topic: 'biomoleculas_origen', question: '¿Qué es un nucleótido?', options: ['Un aminoácido con grupo amino', 'Base nitrogenada + azúcar de cinco carbonos + uno o más fosfatos', 'Un ácido graso saturado', 'Un polisacárido vegetal'], answer: 'Base nitrogenada + azúcar de cinco carbonos + uno o más fosfatos', explanation: 'Es la unidad estructural de los ácidos nucleicos.' },
+      { id: 22, type: 'mcq', topic: 'metabolismo_division', question: '¿Cuál de los siguientes procesos ocurre a favor del gradiente de concentración y sin gasto de ATP?', options: ['Transporte activo', 'Difusión facilitada', 'Bomba sodio-potasio', 'Fagocitosis'], answer: 'Difusión facilitada', explanation: 'La difusión facilitada es un transporte pasivo: va a favor del gradiente y no requiere ATP.' },
+      { id: 23, type: 'mcq', topic: 'metabolismo_division', question: '¿Dónde ocurre la glucólisis?', options: ['Matriz mitocondrial', 'Tilacoides', 'Citosol', 'Núcleo'], answer: 'Citosol', explanation: 'La glucólisis se realiza en el citosol (citoplasma) de la célula.' },
+      { id: 24, type: 'mcq', topic: 'metabolismo_division', question: '¿En qué fase del ciclo celular ocurre la replicación o duplicación del ADN?', options: ['Fase S', 'Metafase', 'Telofase', 'Citocinesis'], answer: 'Fase S', explanation: 'La fase S (síntesis) es la etapa del ciclo celular en la que se duplica el ADN antes de la división.' },
+      { id: 25, type: 'mcq', topic: 'metabolismo_division', question: '¿Cuál es el resultado final de la meiosis a partir de una célula madre diploide (2n)?', options: ['Dos células diploides idénticas', 'Cuatro células haploides (n) genéticamente diferentes', 'Dos células haploides idénticas', 'Cuatro células somáticas 2n'], answer: 'Cuatro células haploides (n) genéticamente diferentes', explanation: 'La meiosis comprende dos divisiones y genera cuatro células haploides con variabilidad genética.' },
+
+      // 26-38: Verdadero / Falso
+      { id: 26, type: 'tf', topic: 'quimica_agua', question: 'El número de masa (A) corresponde únicamente a la cantidad de protones del núcleo.', options: ['Verdadero', 'Falso'], answer: 'Falso', explanation: 'El número de masa (A) suma protones y neutrones; el número atómico (Z) es solo el total de protones.' },
+      { id: 27, type: 'tf', topic: 'quimica_agua', question: 'Los puentes de hidrógeno son atracciones entre el H parcialmente positivo y el O parcialmente negativo de moléculas vecinas.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'Son atracciones relativamente débiles entre regiones de carga parcial opuesta responsables de propiedades del agua.' },
+      { id: 28, type: 'tf', topic: 'quimica_agua', question: 'La cohesión es la capacidad del agua de adherirse a superficies distintas, como las paredes de vasos conductores.', options: ['Verdadero', 'Falso'], answer: 'Falso', explanation: 'Adherirse a otras superficies es adhesión; la cohesión es la tendencia de las moléculas de agua a mantenerse unidas entre sí.' },
+      { id: 29, type: 'tf', topic: 'quimica_agua', question: 'La alta capacidad calorífica del agua se debe a que parte del calor rompe puentes de hidrógeno antes de elevar mucho la temperatura.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'La energía absorbida se emplea primero en romper interacciones entre moléculas, moderando los cambios térmicos.' },
+      { id: 30, type: 'tf', topic: 'biomoleculas_origen', question: 'Los hidratos de carbono se clasifican en monosacáridos, disacáridos y polisacáridos según el número de unidades de azúcar.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'Su clasificación se basa en la cantidad de unidades de azúcar que contienen.' },
+      { id: 31, type: 'tf', topic: 'biomoleculas_origen', question: 'El enlace peptídico une aminoácidos para formar polipéptidos.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'Une aminoácidos mediante enlaces covalentes formando cadenas polipeptídicas.' },
+      { id: 32, type: 'tf', topic: 'biomoleculas_origen', question: 'Si una proteína pierde su estructura tridimensional por desnaturalización, mantiene intacta su función biológica.', options: ['Verdadero', 'Falso'], answer: 'Falso', explanation: 'La estructura tridimensional define la función de la proteína; al desnaturalizarse pierde su capacidad funcional.' },
+      { id: 33, type: 'tf', topic: 'biomoleculas_origen', question: 'El ATP es un nucleótido que actúa como moneda energética celular.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'Permite transferir y liberar energía de forma inmediata para procesos metabólicos.' },
+      { id: 34, type: 'tf', topic: 'biomoleculas_origen', question: 'Al principio, la atmósfera de la Tierra era oxidante y rica en oxígeno libre.', options: ['Verdadero', 'Falso'], answer: 'Falso', explanation: 'Al principio la atmósfera era reductora (sin oxígeno libre) y luego se volvió oxidante con organismos fotosintéticos.' },
+      { id: 35, type: 'tf', topic: 'biomoleculas_origen', question: 'El experimento de Miller y Urey demostró que podían sintetizarse moléculas orgánicas como aminoácidos a partir de sustancias simples.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'Simularon condiciones de la Tierra primitiva con gases y descargas eléctricas y obtuvieron moléculas orgánicas.' },
+      { id: 36, type: 'tf', topic: 'metabolismo_division', question: 'El ciclo de Krebs o ciclo del ácido cítrico ocurre en la matriz mitocondrial.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'En células eucariotas el ciclo de Krebs se lleva a cabo en la matriz mitocondrial.' },
+      { id: 37, type: 'tf', topic: 'metabolismo_division', question: 'En la fotosíntesis, el oxígeno liberado proviene del agua.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'El O₂ liberado se origina a partir del agua durante la fase luminosa en los tilacoides.' },
+      { id: 38, type: 'tf', topic: 'metabolismo_division', question: 'La apoptosis es una ruptura celular accidental y desordenada, mientras que la necrosis es programada.', options: ['Verdadero', 'Falso'], answer: 'Falso', explanation: 'Es al revés: la apoptosis es muerte celular programada y controlada; la necrosis es accidental y desordenada.' },
+
+      // 39-50: Desarrollo corto (con autoevaluación y respuesta modelo)
+      { id: 39, type: 'short', topic: 'quimica_agua', question: '¿Por qué los electrones son clave en las reacciones químicas?', answer: 'Porque las reacciones químicas implican cambios en los electrones (ganar, perder o compartir), y su configuración y energía determinan la formación de enlaces y moléculas.', keywords: ['electrones', 'compartir', 'ganar', 'perder', 'enlaces'], explanation: 'La configuración electrónica y la transferencia/compartición de electrones rigen cómo interactúan los átomos.' },
+      { id: 40, type: 'short', topic: 'quimica_agua', question: '¿Por qué el agua actúa como un solvente tan versátil?', answer: 'Por su polaridad, que le permite rodear e interactuar con iones y moléculas polares, separándolos y manteniéndolos en solución.', keywords: ['polaridad', 'iones', 'polares', 'solución', 'disolver'], explanation: 'Las cargas parciales del agua interactúan con iones y moléculas polares facilitando el transporte y las reacciones.' },
+      { id: 41, type: 'short', topic: 'quimica_agua', question: '¿Por qué el agua es esencial para la vida?', answer: 'Porque es el medio donde ocurren los procesos biológicos, aporta estabilidad térmica, permite el transporte de sustancias y facilita las interacciones de biomoléculas.', keywords: ['procesos', 'térmica', 'transporte', 'biomoléculas', 'medio'], explanation: 'Sus propiedades fisicoquímicas sostienen el metabolismo y el entorno celular.' },
+      { id: 42, type: 'short', topic: 'biomoleculas_origen', question: '¿Qué funciones principales cumplen los lípidos?', answer: 'Almacenan energía, forman membranas celulares (como los fosfolípidos) y actúan como mensajeros químicos.', keywords: ['energía', 'membranas', 'mensajeros', 'hidrófob'], explanation: 'Cumplen funciones energéticas, estructurales y de señalización.' },
+      { id: 43, type: 'short', topic: 'biomoleculas_origen', question: '¿Cuáles son los cuatro niveles estructurales de las proteínas?', answer: 'Primaria (secuencia), secundaria (plegamientos locales), terciaria (forma tridimensional) y cuaternaria (unión de varias cadenas).', keywords: ['primaria', 'secundaria', 'terciaria', 'cuaternaria'], explanation: 'Cada nivel construye la arquitectura tridimensional necesaria para la función proteica.' },
+      { id: 44, type: 'short', topic: 'biomoleculas_origen', question: '¿Qué función cumplen los ácidos nucleicos?', answer: 'Almacenan y transmiten la información genética necesaria para el funcionamiento y reproducción de los seres vivos.', keywords: ['información genética', 'almacenar', 'transmitir'], explanation: 'Guardan y transmiten las instrucciones hereditarias.' },
+      { id: 45, type: 'short', topic: 'biomoleculas_origen', question: '¿Cuál es la diferencia entre generación espontánea y biogénesis?', answer: 'Generación espontánea postula vida desde materia inanimada; biogénesis establece vida a partir de vida preexistente (base para la vida actual junto con la evolución química).', keywords: ['biogénesis', 'preexistente', 'inanimada', 'química'], explanation: 'La biogénesis explica la continuidad de la vida actual desde organismos preexistentes.' },
+      { id: 46, type: 'short', topic: 'metabolismo_division', question: '¿Qué caracteriza al transporte activo frente a la difusión facilitada?', answer: 'El transporte activo mueve solutos en contra del gradiente de concentración gastando ATP; la difusión facilitada va a favor del gradiente sin gastar ATP.', keywords: ['contra', 'gradiente', 'atp', 'energía'], explanation: 'El transporte activo requiere gasto de ATP para ir contra gradiente.' },
+      { id: 47, type: 'short', topic: 'metabolismo_division', question: '¿Qué es la fagocitosis y dónde ocurre la mayor producción de ATP mitocondrial?', answer: 'La fagocitosis es la incorporación de partículas sólidas mediante pseudópodos formando vesículas; la mayor producción de ATP ocurre en la fosforilación oxidativa.', keywords: ['fagocitosis', 'sólidas', 'pseudópodos', 'fosforilación oxidativa'], explanation: 'Combina transporte masivo celular y respiración celular aerobia.' },
+      { id: 48, type: 'short', topic: 'metabolismo_division', question: '¿Dónde ocurre la fase luminosa de la fotosíntesis y cuál es el objetivo de la mitosis?', answer: 'La fase luminosa ocurre en los tilacoides; el objetivo de la mitosis es producir células hijas genéticamente equivalentes para crecimiento y reparación de tejidos.', keywords: ['tilacoides', 'crecimiento', 'reparación', 'equivalentes'], explanation: 'Relaciona captación lumínica en cloroplastos con división somática.' },
+      { id: 49, type: 'short', topic: 'metabolismo_division', question: '¿Qué es la no disyunción y en qué fase de la mitosis se alinean los cromosomas en el plano ecuatorial?', answer: 'La no disyunción es la separación incorrecta de cromosomas homólogos o cromátidas hermanas; los cromosomas se alinean en el plano ecuatorial en la metafase.', keywords: ['no disyunción', 'separación', 'metafase', 'ecuatorial'], explanation: 'La no disyunción puede alterar el número cromosómico de las células hijas.' },
+      { id: 50, type: 'short', topic: 'metabolismo_division', question: '¿En qué células ocurre la meiosis y dónde ocurre la traducción en una célula eucariota?', answer: 'La meiosis ocurre en células germinales (en gónadas); la traducción ocurre en los ribosomas (libres en el citoplasma o asociados al RER).', keywords: ['germinales', 'gónadas', 'ribosomas', 'citoplasma', 'rer'], explanation: 'Distingue la gametogénesis meiótica del sitio de síntesis proteica.' },
+      { id: 51, type: 'mcq', topic: 'celula', question: 'Caso experimental: Se trata una muestra celular con un inhibidor de la proteína dineína. ¿Qué proceso se verá afectado de forma directa?', options: ['El movimiento de cilios y flagelos mediado por microtúbulos', 'La replicación del ADN en la fase S', 'La formación de enlaces peptídicos en el citosol', 'La síntesis de glucosa en tilacoides'], answer: 'El movimiento de cilios y flagelos mediado por microtúbulos', explanation: 'La dineína interactúa con los microtúbulos para producir el movimiento de cilios y flagelos.' },
+      { id: 52, type: 'mcq', topic: 'celula', question: 'Caso: Se aísla un orgánulo membranoso con su propio ADN y ribosomas, distinto de las vesículas del sistema de endomembranas. ¿De cuál puede tratarse?', options: ['Mitocondria o cloroplasto', 'Retículo endoplasmático liso', 'Membrana plasmática', 'Complejo de enlaces iónicos'], answer: 'Mitocondria o cloroplasto', explanation: 'Mitocondrias y cloroplastos poseen ADN y ribosomas propios, a diferencia del resto del sistema de endomembranas.' },
+      { id: 53, type: 'mcq', topic: 'quimica_agua', question: 'Caso ambiental: En invierno, una capa superficial de hielo se forma sobre un lago sin congelar por completo el agua inferior. ¿Qué propiedad explica este fenómeno?', options: ['La densidad anómala del hielo, que flota y actúa como aislante', 'La transferencia de electrones covalentes entre moléculas de hielo', 'El bajo calor de evaporación del agua sólida', 'La pérdida de polaridad del oxígeno'], answer: 'La densidad anómala del hielo, que flota y actúa como aislante', explanation: 'El hielo es menos denso que el agua líquida por su estructura abierta, flota y protege la vida debajo.' },
+      { id: 54, type: 'mcq', topic: 'quimica_agua', question: 'Caso: Al disolver una sal con enlace iónico en agua, sus iones se separan y quedan rodeados por moléculas de agua. ¿Por qué ocurre esto?', options: ['Por la polaridad del agua, que interactúa con iones y los mantiene en solución', 'Porque el agua transforma los enlaces iónicos en enlaces peptídicos', 'Porque el número atómico Z del agua aumenta', 'Porque el agua carece de cargas parciales'], answer: 'Por la polaridad del agua, que interactúa con iones y los mantiene en solución', explanation: 'La polaridad del agua le permite rodear e interactuar con iones y moléculas polares, separándolos en solución.' },
+      { id: 55, type: 'mcq', topic: 'biomoleculas_origen', question: 'Caso: Una proteína sufre un cambio brusco de condiciones y pierde su plegamiento tridimensional. ¿Qué consecuencia esperas?', options: ['Pérdida de su función biológica por desnaturalización', 'Aumento automático de su número de masa (A)', 'Transformación en un nucleótido con fosfatos', 'Conversión en un polisacárido de glucosa'], answer: 'Pérdida de su función biológica por desnaturalización', explanation: 'La forma tridimensional define la función de la proteína; si pierde su estructura, pierde su función.' },
+      { id: 56, type: 'mcq', topic: 'biomoleculas_origen', question: 'Caso: Un investigador compara 1 g de lípido con 1 g de hidrato de carbono como reserva energética. ¿Qué ventaja presentan los lípidos?', options: ['Almacenan más del doble de energía por gramo gracias a enlaces ricos en C–H', 'Son solubles en agua y actúan como nucleótidos', 'Se forman por enlaces peptídicos entre bases nitrogenadas', 'Sustituyen al ADN en la transmisión genética'], answer: 'Almacenan más del doble de energía por gramo gracias a enlaces ricos en C–H', explanation: 'Los lípidos tienen alta densidad energética y almacenan más del doble de energía por gramo que los hidratos de carbono.' },
+      { id: 57, type: 'mcq', topic: 'metabolismo_division', question: 'Caso: Se suministra agua marcada isotópicamente a plantas realizando fotosíntesis. ¿En qué molécula liberada aparecerá primero esa marca?', options: ['En el oxígeno (O₂) liberado durante la fase luminosa', 'En el ATP producido durante la glucólisis', 'En los fosfolípidos del retículo liso', 'En las proteínas formadas por fisión binaria'], answer: 'En el oxígeno (O₂) liberado durante la fase luminosa', explanation: 'El O₂ liberado en la fotosíntesis proviene del agua en la fase luminosa (tilacoides).' },
+      { id: 58, type: 'mcq', topic: 'metabolismo_division', question: 'Caso: Una célula transporta un soluto en contra de su gradiente de concentración y detiene el proceso al agotar el ATP. ¿Qué tipo de transporte realizaba?', options: ['Transporte activo', 'Difusión facilitada', 'Cohesión osmótica', 'Desnaturalización pasiva'], answer: 'Transporte activo', explanation: 'El transporte activo desplaza solutos en contra de sus gradientes de concentración utilizando energía (ATP).' },
+      { id: 59, type: 'tf', topic: 'metabolismo_division', question: 'Caso: Si ocurre no disyunción durante la meiosis, los cromosomas homólogos o cromátidas hermanas no se separan correctamente y pueden alterarse los números cromosómicos.', options: ['Verdadero', 'Falso'], answer: 'Verdadero', explanation: 'La no disyunción es un error de separación meiótica que puede provocar alteraciones en el número de cromosomas.' },
+      { id: 60, type: 'short', topic: 'biomoleculas_origen', question: 'Caso de origen de la vida: ¿Qué reprodujeron Miller y Urey y qué relación existe entre biogénesis y evolución química para explicar la vida?', answer: 'Simularon condiciones de la Tierra primitiva con gases y descargas eléctricas demostrando que se forman moléculas orgánicas (como aminoácidos) a partir de sustancias simples; la ciencia acepta la biogénesis para la vida actual y estudia la evolución química para el origen del primer ser vivo.', keywords: ['miller', 'urey', 'orgánicas', 'biogénesis', 'evolución química'], explanation: 'Integra la síntesis prebiótica experimental con el marco conceptual del origen de la vida.' }
+    ];
+
+    /* =========================================================================
+       4. 36 FLASHCARDS DE ESTUDIO (CON BLOQUE TEMÁTICO)
+       ========================================================================= */
+    const FLASHCARDS = [
+      { id: 1, topic: 'celula', front: 'Unidad mínima de vida', back: 'La célula es el nivel más simple de organización biológica considerado unidad de vida.' },
+      { id: 2, topic: 'celula', front: 'Microscopio para observar células vivas con luz', back: 'Microscopio óptico: utiliza luz y permite trabajar con muestras vivas.' },
+      { id: 3, topic: 'celula', front: 'Diferencia clave eucarionte vs. procarionte', back: 'Las células eucariontes tienen ADN dentro de un núcleo limitado por membrana; las procariontes no.' },
+      { id: 4, topic: 'celula', front: 'Orgánulo de síntesis de proteínas', back: 'Ribosoma (puede estar libre en el citosol o asociado al retículo endoplasmático rugoso, RER).' },
+      { id: 5, topic: 'celula', front: 'Función principal de la membrana plasmática', back: 'Actuar como barrera selectiva regulando el intercambio de sustancias con el entorno.' },
+      { id: 6, topic: 'celula', front: 'Función específica del retículo endoplasmático liso (REL)', back: 'Participa en la desintoxicación de fármacos y venenos, entre otras funciones.' },
+      { id: 7, topic: 'celula', front: 'Rasgo de mitocondrias y cloroplastos frente al sistema de endomembranas', back: 'Contienen su propio ADN y ribosomas.' },
+      { id: 8, topic: 'celula', front: 'Movimiento de cilios y flagelos con dineína', back: 'Microtúbulos (componente del citoesqueleto que interactúa con la dineína para generar movimiento).' },
+      { id: 9, topic: 'celula', front: 'Orgánulo exclusivo de células vegetales vinculado a la fotosíntesis', back: 'Cloroplastos.' },
+      { id: 10, topic: 'celula', front: 'Elementos que comparten todas las células', back: 'ADN, membrana plasmática y ribosomas (no todas tienen núcleo, pared celular ni cloroplastos).' },
+      { id: 11, topic: 'quimica_agua', front: 'Partículas del átomo y sus cargas', back: 'Protones (+), neutrones (0) en el núcleo; electrones (-) orbitando alrededor del núcleo.' },
+      { id: 12, topic: 'quimica_agua', front: 'Número atómico (Z) vs. número de masa (A)', back: 'Z = cantidad de protones; A = protones + neutrones.' },
+      { id: 13, topic: 'quimica_agua', front: 'Papel de los electrones en reacciones químicas', back: 'Cambian de estado (ganan, pierden o comparten) y su configuración/energía determina enlaces y moléculas.' },
+      { id: 14, topic: 'quimica_agua', front: 'Enlace iónico vs. enlace covalente', back: 'Iónico: transferencia de electrones y atracción por cargas opuestas. Covalente: compartir electrones.' },
+      { id: 15, topic: 'quimica_agua', front: '¿Qué enlace es más fuerte en sistemas biológicos y por qué?', back: 'El enlace covalente suele ser más fuerte y estable; los enlaces iónicos pueden debilitarse o disociarse en agua.' },
+      { id: 16, topic: 'quimica_agua', front: '¿Por qué el agua es polar?', back: 'Porque el oxígeno atrae con más fuerza los electrones compartidos (carga parcial negativa en O y positiva en H).' },
+      { id: 17, topic: 'quimica_agua', front: 'Puentes de hidrógeno', back: 'Atracciones débiles entre H parcialmente positivo y O parcialmente negativo de moléculas vecinas.' },
+      { id: 18, topic: 'quimica_agua', front: 'Cohesión vs. adhesión del agua', back: 'Cohesión: moléculas de agua unidas entre sí. Adhesión: agua unida a otras superficies (ej. vasos conductores).' },
+      { id: 19, topic: 'quimica_agua', front: 'Alta capacidad calorífica y alto calor de evaporación', back: 'Requieren romper puentes de hidrógeno; estabilizan temperaturas y refrigeran por sudoración/transpiración.' },
+      { id: 20, topic: 'quimica_agua', front: 'Densidad anómala del hielo y versatilidad como solvente', back: 'El hielo es menos denso que el agua líquida (flota y aísla); su polaridad disuelve iones y moléculas polares.' },
+      { id: 21, topic: 'biomoleculas_origen', front: 'Hidratos de carbono: clasificación y función', back: 'Monosacáridos, disacáridos y polisacáridos; aportan energía (glucosa = combustible inmediato) y estructura.' },
+      { id: 22, topic: 'biomoleculas_origen', front: 'Lípidos: rasgos, funciones y densidad energética', back: 'Hidrofóbicos; almacenan energía (enlaces C–H, >2x energía/g que glúcidos), forman membranas y señalizan.' },
+      { id: 23, topic: 'biomoleculas_origen', front: 'Proteínas: monómero, enlace y niveles estructurales', back: 'Aminoácidos unidos por enlace peptídico; niveles primario, secundario, terciario y cuaternario.' },
+      { id: 24, topic: 'biomoleculas_origen', front: 'Estructura tridimensional y función proteica', back: 'La forma tridimensional define la función; si se pierde por desnaturalización, se pierde la función.' },
+      { id: 25, topic: 'biomoleculas_origen', front: 'Nucleótido, función de ácidos nucleicos y ATP', back: 'Nucleótido = base + azúcar 5C + fosfato. Ácidos nucleicos: info genética. ATP: moneda energética celular.' },
+      { id: 26, topic: 'biomoleculas_origen', front: 'Origen de la Tierra, atmósfera y biogénesis', back: 'Tierra ~4.600 Ma; atmósfera pasó de reductora (sin O₂ libre) a oxidante por fotosíntesis. Biogénesis + evolución química.' },
+      { id: 27, topic: 'biomoleculas_origen', front: 'Experimento de Miller y Urey', back: 'Simuló condiciones de la Tierra primitiva (gases y descargas eléctricas) y formó moléculas orgánicas (como aminoácidos).' },
+      { id: 28, topic: 'metabolismo_division', front: 'Moléculas anfipáticas (ej. fosfolípidos)', back: 'Poseen una región hidrófila (afinidad por el agua) y otra hidrófoba (repele el agua).' },
+      { id: 29, topic: 'metabolismo_division', front: 'Difusión facilitada vs. transporte activo', back: 'Difusión facilitada: a favor del gradiente sin ATP. Transporte activo: en contra del gradiente con ATP.' },
+      { id: 30, topic: 'metabolismo_division', front: 'Fagocitosis', back: 'Transporte masivo en el que la célula incorpora partículas sólidas formando vesículas con pseudópodos.' },
+      { id: 31, topic: 'metabolismo_division', front: 'Glucólisis, ciclo de Krebs y fosforilación oxidativa', back: 'Citosol, matriz mitocondrial y fosforilación oxidativa (mayor producción de ATP en la mitocondria).' },
+      { id: 32, topic: 'metabolismo_division', front: 'Fotosíntesis: fase luminosa y origen del O₂', back: 'Fase luminosa en tilacoides; el oxígeno (O₂) liberado proviene del agua.' },
+      { id: 33, topic: 'metabolismo_division', front: 'Fisión binaria y fase S del ciclo celular', back: 'Fisión binaria: división de procariontes/bacterias. Fase S: replicación/duplicación del ADN antes de dividirse.' },
+      { id: 34, topic: 'metabolismo_division', front: 'Mitosis: objetivo y metafase', back: 'Crecimiento y reparación con células genéticamente equivalentes; en metafase se alinean en el plano ecuatorial.' },
+      { id: 35, topic: 'metabolismo_division', front: 'Meiosis y no disyunción', back: 'En células germinales (gónadas) da 4 haploides (n) distintas desde 2n. No disyunción: fallo en separación cromosómica.' },
+      { id: 36, topic: 'metabolismo_division', front: 'Apoptosis vs. necrosis y sitio de traducción', back: 'Apoptosis: muerte programada y controlada; necrosis: accidental y desordenada. Traducción: en ribosomas.' }
+    ];
+
+    /* =========================================================================
+       5. ERRORES COMUNES Y TRAMPAS DE EXAMEN
+       ========================================================================= */
+    const EXAM_TRAPS = [
+      {
+        id: 1,
+        myth: 'Confundir el número atómico (Z) con el número de masa (A).',
+        reality: 'El número atómico (Z) es solo la cantidad de protones; el número de masa (A) suma protones más neutrones.',
+        tip: 'Regla rápida: Z = solo protones; A = protones + neutrones.'
+      },
+      {
+        id: 2,
+        myth: 'Asumir que todas las células tienen núcleo, pared celular o cloroplastos.',
+        reality: 'Todas las células comparten ADN, membrana plasmática y ribosomas, pero no todas tienen núcleo definido, pared celular ni cloroplastos.',
+        tip: 'Clave universal: ADN + membrana plasmática + ribosomas.'
+      },
+      {
+        id: 3,
+        myth: 'Intercambiar cohesión y adhesión del agua.',
+        reality: 'La cohesión es la unión de moléculas de agua entre sí; la adhesión es la unión del agua a otras superficies (como las paredes de vasos conductores).',
+        tip: 'Co-hesión = agua con agua; Ad-hesión = agua con otras superficies.'
+      },
+      {
+        id: 4,
+        myth: 'Creer que el enlace iónico es más estable que el covalente en un entorno celular acuoso.',
+        reality: 'En sistemas biológicos, el enlace covalente es en general más fuerte y estable, mientras que los enlaces iónicos pueden debilitarse o disociarse en agua.',
+        tip: 'En agua, los iones pueden separarse; compartir electrones da mayor estabilidad covalente.'
+      },
+      {
+        id: 5,
+        myth: 'Pensar que el oxígeno liberado en la fotosíntesis proviene del CO₂.',
+        reality: 'El O₂ liberado en la fotosíntesis proviene del agua durante la fase luminosa (en los tilacoides).',
+        tip: 'Fase luminosa en tilacoides -> fotólisis del agua -> libera O₂.'
+      },
+      {
+        id: 6,
+        myth: 'Ubicar la glucólisis en la mitocondria o el ciclo de Krebs en el citosol.',
+        reality: 'La glucólisis ocurre en el citosol y el ciclo de Krebs ocurre en la matriz mitocondrial.',
+        tip: 'Glucólisis = citosol; Ciclo de Krebs = matriz mitocondrial; Mayor ATP = fosforilación oxidativa.'
+      },
+      {
+        id: 7,
+        myth: 'Confundir el producto de la mitosis con el de la meiosis.',
+        reality: 'La mitosis produce células genéticamente equivalentes (crecimiento y reparación); la meiosis ocurre en células germinales y produce 4 células haploides (n) genéticamente distintas a partir de una diploide (2n).',
+        tip: 'Mitosis = equivalentes (crecimiento/reparación); Meiosis = 4 haploides distintas (gónadas).'
+      },
+      {
+        id: 8,
+        myth: 'Tratar la apoptosis y la necrosis como sinónimos.',
+        reality: 'La apoptosis es muerte celular programada y controlada; la necrosis es accidental y desordenada.',
+        tip: 'Tip de examen: Apoptosis = programa controlado; Necrosis = daño accidental.'
+      }
+    ];
+
+    const COMPARISON_TABLES = [
+      {
+        id: 'mitosis_meiosis',
+        title: 'Mitosis vs. Meiosis',
+        topic: 'metabolismo_division',
+        headers: ['Criterio', 'Mitosis', 'Meiosis'],
+        rows: [
+          ['Células / Función', 'Crecimiento y reparación de tejidos', 'Células germinales (en gónadas)'],
+          ['Resultado', 'Células hijas genéticamente equivalentes', '4 células haploides (n) genéticamente distintas (desde 2n)']
+        ]
+      },
+      {
+        id: 'transporte',
+        title: 'Difusión facilitada vs. Transporte activo',
+        topic: 'metabolismo_division',
+        headers: ['Criterio', 'Difusión facilitada', 'Transporte activo'],
+        rows: [
+          ['Gradiente', 'A favor del gradiente de concentración', 'En contra del gradiente de concentración'],
+          ['Energía (ATP)', 'Sin gasto de ATP', 'Utiliza energía (ATP)']
+        ]
+      },
+      {
+        id: 'enlaces_agua',
+        title: 'Enlace covalente vs. iónico / Cohesión vs. adhesión',
+        topic: 'quimica_agua',
+        headers: ['Par comparado', 'Opción A', 'Opción B'],
+        rows: [
+          ['Enlaces químicos', 'Covalente: comparte electrones; más estable en sistemas biológicos', 'Iónico: transfiere electrones; puede disociarse/debilitarse en agua'],
+          ['Propiedades del H₂O', 'Cohesión: moléculas de agua unidas entre sí', 'Adhesión: agua unida a otras superficies (ej. vasos conductores)']
+        ]
+      },
+      {
+        id: 'muerte_celular',
+        title: 'Apoptosis vs. Necrosis',
+        topic: 'metabolismo_division',
+        headers: ['Criterio', 'Apoptosis', 'Necrosis'],
+        rows: [
+          ['Naturaleza del proceso', 'Muerte celular programada y controlada', 'Ruptura celular accidental y desordenada']
+        ]
+      }
+    ];
+
+    /* =========================================================================
+       6. ESTADO DE LA APLICACIÓN Y PERSISTENCIA EN LOCALSTORAGE
+       ========================================================================= */
+    const STORAGE_KEY = 'biolab_movil_state_v1';
+
+    const defaultState = {
+      activeTab: 'conceptos',
+      conceptTopic: 'all',
+      conceptSearch: '',
+      trapSearch: '',
+      quizTopic: 'all',
+      quizType: 'all',
+      quizIndex: 0,
+      quizAnswers: {},
+      quizStats: {
+        sessionsCompleted: 0,
+        totalAnswered: 0,
+        totalCorrect: 0
+      },
+      quizConfig: {
+        questionCount: 20,
+        customCount: 20,
+        timerMinutes: 20,
+        customTimerMinutes: 20,
+        shuffleQuestions: true,
+        shuffleOptions: true,
+        feedbackMode: 'immediate',
+        reviewOnlyIds: [],
+        sessionStarted: false,
+        sessionFinished: false,
+        activeQuestionIds: [],
+        shuffledOptionsMap: {},
+        remainingSeconds: null,
+        timedOut: false
+      },
+      flashcardOrder: FLASHCARDS.map((f) => f.id),
+      flashcardIndex: 0,
+      flashcardFlipped: false,
+      flashcardShuffledMode: false,
+      flashcardTopic: 'all',
+      flashcardOnlyUnmastered: false,
+      masteredCards: []
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return structuredClone(defaultState);
+        const parsed = JSON.parse(raw);
+        const mergedConfig = {
+          ...structuredClone(defaultState.quizConfig),
+          ...(parsed.quizConfig || {})
+        };
+        const mergedStats = {
+          ...structuredClone(defaultState.quizStats),
+          ...(parsed.quizStats || {})
+        };
+        const validCardIds = new Set(FLASHCARDS.map((f) => f.id));
+        const savedOrder = Array.isArray(parsed.flashcardOrder)
+          ? parsed.flashcardOrder.filter((id) => validCardIds.has(id))
+          : [];
+        const completeOrder = savedOrder.length === FLASHCARDS.length
+          ? savedOrder
+          : FLASHCARDS.map((f) => f.id);
+        const cleanedMastered = Array.isArray(parsed.masteredCards)
+          ? [...new Set(parsed.masteredCards.filter((id) => validCardIds.has(id)))]
+          : [];
+
+        return {
+          ...structuredClone(defaultState),
+          ...parsed,
+          conceptSearch: typeof parsed.conceptSearch === 'string' ? parsed.conceptSearch : '',
+          trapSearch: typeof parsed.trapSearch === 'string' ? parsed.trapSearch : '',
+          flashcardTopic: parsed.flashcardTopic || 'all',
+          flashcardOnlyUnmastered: Boolean(parsed.flashcardOnlyUnmastered),
+          quizStats: mergedStats,
+          quizConfig: mergedConfig,
+          quizAnswers: parsed.quizAnswers || {},
+          masteredCards: cleanedMastered,
+          flashcardShuffledMode: Boolean(parsed.flashcardShuffledMode),
+          flashcardOrder: completeOrder
+        };
+      } catch (err) {
+        return structuredClone(defaultState);
+      }
+    }
+
+    let state = loadState();
+    let quizTimerInterval = null;
+    let confirmResetAllPending = false;
+    let confirmResetMasteryPending = false;
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        // Ignorar errores de cuota de almacenamiento
+      }
+    }
+
+    let toastTimeout = null;
+    function showToast(message) {
+      const toast = document.getElementById('toast-banner');
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2400);
+    }
+
+    function formatClock(totalSeconds) {
+      const safe = Math.max(0, Math.floor(totalSeconds || 0));
+      const mins = Math.floor(safe / 60);
+      const secs = safe % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function shuffleArray(source) {
+      const arr = [...source];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function stopQuizTimer() {
+      if (quizTimerInterval) {
+        clearInterval(quizTimerInterval);
+        quizTimerInterval = null;
+      }
+    }
+
+    function recordHistoricalStats(questionIds) {
+      const answeredIds = questionIds.filter((id) => Boolean(state.quizAnswers[id]));
+      const correctCount = answeredIds.filter((id) => Boolean(state.quizAnswers[id]?.isCorrect)).length;
+      state.quizStats.sessionsCompleted += 1;
+      state.quizStats.totalAnswered += answeredIds.length;
+      state.quizStats.totalCorrect += correctCount;
+    }
+
+    function finishQuizSession(timedOut = false) {
+      stopQuizTimer();
+      if (!state.quizConfig.sessionFinished) {
+        recordHistoricalStats(state.quizConfig.activeQuestionIds || []);
+      }
+      state.quizConfig.sessionFinished = true;
+      state.quizConfig.timedOut = timedOut;
+      saveState();
+      renderApp();
+      if (timedOut) {
+        showToast('¡Tiempo agotado! Simulacro enviado automáticamente.');
+      } else {
+        showToast('Simulacro finalizado. Revisa tu diagnóstico.');
+      }
+    }
+
+    function syncQuizTimerDisplay() {
+      const cfg = state.quizConfig;
+      const clockEl = document.getElementById('quiz-live-clock');
+      const bannerEl = document.getElementById('quiz-timer-box');
+      if (!clockEl || !bannerEl || cfg.remainingSeconds === null) return;
+
+      clockEl.textContent = formatClock(cfg.remainingSeconds);
+
+      if (cfg.remainingSeconds <= 60) {
+        bannerEl.className = 'rounded-2xl px-3.5 py-2.5 border flex items-center justify-between bg-rose-50 border-rose-400 text-rose-950 animate-pulse';
+      } else if (cfg.remainingSeconds <= 180) {
+        bannerEl.className = 'rounded-2xl px-3.5 py-2.5 border flex items-center justify-between bg-amber-50 border-amber-400 text-amber-950';
+      } else {
+        bannerEl.className = 'rounded-2xl px-3.5 py-2.5 border flex items-center justify-between bg-emerald-50/90 border-emerald-200 text-emerald-950';
+      }
+    }
+
+    function ensureQuizTimerRunning() {
+      stopQuizTimer();
+      const cfg = state.quizConfig;
+      if (
+        state.activeTab !== 'quiz' ||
+        !cfg.sessionStarted ||
+        cfg.sessionFinished ||
+        cfg.remainingSeconds === null
+      ) {
+        return;
+      }
+
+      syncQuizTimerDisplay();
+      quizTimerInterval = setInterval(() => {
+        if (
+          state.activeTab !== 'quiz' ||
+          !state.quizConfig.sessionStarted ||
+          state.quizConfig.sessionFinished ||
+          state.quizConfig.remainingSeconds === null
+        ) {
+          stopQuizTimer();
+          return;
+        }
+
+        state.quizConfig.remainingSeconds -= 1;
+        if (state.quizConfig.remainingSeconds <= 0) {
+          state.quizConfig.remainingSeconds = 0;
+          saveState();
+          finishQuizSession(true);
+        } else {
+          if (state.quizConfig.remainingSeconds % 5 === 0) {
+            saveState();
+          }
+          syncQuizTimerDisplay();
+        }
+      }, 1000);
+    }
+
+    function getPoolByFilters() {
+      const cfg = state.quizConfig;
+      if (Array.isArray(cfg.reviewOnlyIds) && cfg.reviewOnlyIds.length > 0) {
+        const setIds = new Set(cfg.reviewOnlyIds);
+        return QUIZ_QUESTIONS.filter((q) => setIds.has(q.id));
+      }
+      return QUIZ_QUESTIONS.filter((q) => {
+        const topicOk = state.quizTopic === 'all' || q.topic === state.quizTopic;
+        const typeOk = state.quizType === 'all' || q.type === state.quizType;
+        return topicOk && typeOk;
+      });
+    }
+
+    function startConfiguredQuiz(overrideIds = null) {
+      if (Array.isArray(overrideIds) && overrideIds.length > 0) {
+        state.quizConfig.reviewOnlyIds = [...overrideIds];
+      }
+
+      const pool = getPoolByFilters();
+      if (pool.length === 0) {
+        showToast('No hay preguntas disponibles para iniciar.');
+        return;
+      }
+
+      const cfg = state.quizConfig;
+      const requested = Array.isArray(overrideIds) && overrideIds.length > 0
+        ? overrideIds.length
+        : (Number(cfg.questionCount) || 20);
+      const clampedCount = Math.max(1, Math.min(pool.length, requested));
+
+      const orderedPool = cfg.shuffleQuestions ? shuffleArray(pool) : [...pool];
+      const selected = orderedPool.slice(0, clampedCount);
+
+      const optionsMap = {};
+      selected.forEach((q) => {
+        if (q.type === 'mcq') {
+          optionsMap[q.id] = cfg.shuffleOptions ? shuffleArray(q.options) : [...q.options];
+        } else if (q.type === 'tf') {
+          optionsMap[q.id] = [...q.options];
+        }
+      });
+
+      const minutes = Number(cfg.timerMinutes) || 0;
+      cfg.questionCount = clampedCount;
+      cfg.activeQuestionIds = selected.map((q) => q.id);
+      cfg.shuffledOptionsMap = optionsMap;
+      cfg.remainingSeconds = minutes > 0 ? Math.round(minutes * 60) : null;
+      cfg.timedOut = false;
+      cfg.sessionStarted = true;
+      cfg.sessionFinished = false;
+
+      state.quizAnswers = {};
+      state.quizIndex = 0;
+      saveState();
+      renderApp();
+      showToast(`Simulacro iniciado: ${clampedCount} preguntas${minutes > 0 ? ` • ${minutes} min` : ' • Sin límite'}.`);
+    }
+
+    function openQuizConfigurator() {
+      stopQuizTimer();
+      confirmResetAllPending = false;
+      state.quizConfig.reviewOnlyIds = [];
+      state.quizConfig.sessionStarted = false;
+      state.quizConfig.sessionFinished = false;
+      state.quizConfig.timedOut = false;
+      saveState();
+      renderApp();
+    }
+
+    function getFilteredFlashcardIds() {
+      const idToCard = new Map(FLASHCARDS.map((c) => [c.id, c]));
+      const masteredSet = new Set(state.masteredCards);
+
+      return state.flashcardOrder.filter((id) => {
+        const card = idToCard.get(id);
+        if (!card) return false;
+        const topicOk = state.flashcardTopic === 'all' || card.topic === state.flashcardTopic;
+        const unmasteredOk = !state.flashcardOnlyUnmastered || !masteredSet.has(card.id);
+        return topicOk && unmasteredOk;
+      });
+    }
+
+    /* =========================================================================
+       7. RENDERIZADO DE COMPONENTES Y PESTAÑAS
+       ========================================================================= */
+    function populateBilayerSvg() {
+      const group = document.getElementById('bilayer-group');
+      if (!group) return;
+      group.innerHTML = '';
+      const startX = 198;
+      const count = 9;
+      const spacing = 17;
+
+      for (let i = 0; i < count; i++) {
+        const x = startX + i * spacing;
+        // Fila superior: cabeza hidrófila (azul) + dos colas hidrófobas (naranja)
+        group.innerHTML += `
+          <line x1="${x - 2.5}" y1="53" x2="${x - 2.5}" y2="67" stroke="#ea580c" stroke-width="1.4" />
+          <line x1="${x + 2.5}" y1="53" x2="${x + 2.5}" y2="67" stroke="#ea580c" stroke-width="1.4" />
+          <circle cx="${x}" cy="49" r="5" fill="#0284c7" />
+        `;
+        // Fila inferior: dos colas hidrófobas hacia arriba + cabeza hidrófila abajo
+        group.innerHTML += `
+          <line x1="${x - 2.5}" y1="85" x2="${x - 2.5}" y2="71" stroke="#ea580c" stroke-width="1.4" />
+          <line x1="${x + 2.5}" y1="85" x2="${x + 2.5}" y2="71" stroke="#ea580c" stroke-width="1.4" />
+          <circle cx="${x}" cy="89" r="5" fill="#0284c7" />
+        `;
+      }
+    }
+
+    function updateHeader() {
+      const badge = document.getElementById('header-mastery-badge');
+      const subbar = document.getElementById('header-subbar');
+      if (badge) {
+        badge.textContent = `${state.masteredCards.length}/${FLASHCARDS.length} dom.`;
+      }
+      if (!subbar) return;
+
+      if (state.activeTab === 'conceptos') {
+        subbar.innerHTML = `
+          <span>Conceptos, Tablas y Buscador</span>
+          <span class="text-emerald-300 font-semibold">4 Bloques • 4 Tablas</span>
+        `;
+      } else if (state.activeTab === 'quiz') {
+        const cfg = state.quizConfig;
+        if (!cfg.sessionStarted) {
+          subbar.innerHTML = `
+            <span>Configurador de Simulacro</span>
+            <span class="text-emerald-300 font-semibold">${QUIZ_QUESTIONS.length} Preguntas en Banco</span>
+          `;
+        } else if (cfg.sessionFinished) {
+          subbar.innerHTML = `
+            <span>Diagnóstico del Simulacro</span>
+            <span class="text-emerald-300 font-semibold">${cfg.activeQuestionIds.length} Preguntas</span>
+          `;
+        } else {
+          const clockText = cfg.remainingSeconds !== null ? formatClock(cfg.remainingSeconds) : 'Sin límite';
+          subbar.innerHTML = `
+            <span>Pregunta ${state.quizIndex + 1} de ${cfg.activeQuestionIds.length}</span>
+            <span class="text-emerald-300 font-semibold">⏱ ${clockText}</span>
+          `;
+        }
+      } else if (state.activeTab === 'flashcards') {
+        const modeText = state.flashcardShuffledMode ? 'Aleatorias' : 'Ordenadas';
+        subbar.innerHTML = `
+          <span>Flashcards (${modeText})</span>
+          <span class="text-emerald-300 font-semibold">${state.masteredCards.length}/${FLASHCARDS.length} Dominadas</span>
+        `;
+      } else if (state.activeTab === 'trampas') {
+        subbar.innerHTML = `
+          <span>Errores Comunes y Trampas</span>
+          <span class="text-emerald-300 font-semibold">${EXAM_TRAPS.length} Alertas Clave</span>
+        `;
+      }
+    }
+
+    function updateNavButtons() {
+      document.querySelectorAll('.nav-tab').forEach((btn) => {
+        const isActive = btn.dataset.tab === state.activeTab;
+        btn.className = `nav-tab flex flex-col items-center justify-center py-2 px-1 rounded-2xl text-xs transition-all min-h-[54px] ${
+          isActive
+            ? 'font-bold bg-emerald-50 text-emerald-800'
+            : 'font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100/80'
+        }`;
+      });
+    }
+
+    /* ----------------- PESTAÑA 1: CONCEPTOS, TABLAS Y AMPLIACIÓN ----------------- */
+    function renderConceptosTab(container) {
+      const filters = [
+        { id: 'all', label: 'Todos (4)' },
+        { id: 'celula', label: 'Célula' },
+        { id: 'quimica_agua', label: 'Química y Agua' },
+        { id: 'biomoleculas_origen', label: 'Biomoléculas y Origen' },
+        { id: 'metabolismo_division', label: 'Metabolismo y División' }
+      ];
+
+      const query = (state.conceptSearch || '').trim().toLowerCase();
+      const stats = state.quizStats || { sessionsCompleted: 0, totalAnswered: 0, totalCorrect: 0 };
+      const histPct = stats.totalAnswered > 0 ? Math.round((stats.totalCorrect / stats.totalAnswered) * 100) : 0;
+      const fcPct = Math.round((state.masteredCards.length / FLASHCARDS.length) * 100);
+
+      const visibleModules = CONCEPT_MODULES.filter((m) => {
+        const topicOk = state.conceptTopic === 'all' || m.id === state.conceptTopic;
+        if (!topicOk) return false;
+        if (!query) return true;
+        const haystack = [
+          m.title,
+          m.badge,
+          ...m.keyPoints,
+          ...m.universityExtra.flatMap((ex) => [ex.subtitle, ex.text])
+        ].join(' ').toLowerCase();
+        return haystack.includes(query);
+      });
+
+      const visibleTables = COMPARISON_TABLES.filter((tbl) => {
+        const topicOk = state.conceptTopic === 'all' || tbl.topic === state.conceptTopic;
+        if (!topicOk) return false;
+        if (!query) return true;
+        const haystack = [tbl.title, ...tbl.headers, ...tbl.rows.flat()].join(' ').toLowerCase();
+        return haystack.includes(query);
+      });
+
+      container.innerHTML = `
+        <div class="animate-fade-up space-y-4">
+          <!-- Panel resumen interactivo de avance y accesos directos -->
+          <section class="bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 text-white rounded-3xl p-4 shadow-sm space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">Panel de Estudio</span>
+                <h2 class="text-sm font-extrabold">Tu avance para el parcial</h2>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-white/15 text-emerald-100">
+                ${QUIZ_QUESTIONS.length} preg. • ${FLASHCARDS.length} cards
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="bg-white/10 rounded-2xl p-2.5 border border-white/10">
+                <div class="flex items-center justify-between text-[11px] font-bold text-emerald-100">
+                  <span>Flashcards</span>
+                  <span>${fcPct}%</span>
+                </div>
+                <p class="text-sm font-extrabold mt-0.5">${state.masteredCards.length}/${FLASHCARDS.length} dominadas</p>
+                <div class="w-full h-1.5 bg-white/15 rounded-full overflow-hidden mt-1.5">
+                  <div class="h-full bg-emerald-300" style="width: ${fcPct}%"></div>
+                </div>
+              </div>
+
+              <div class="bg-white/10 rounded-2xl p-2.5 border border-white/10">
+                <div class="flex items-center justify-between text-[11px] font-bold text-emerald-100">
+                  <span>Simulacros</span>
+                  <span>${histPct}%</span>
+                </div>
+                <p class="text-sm font-extrabold mt-0.5">${stats.sessionsCompleted} realizados</p>
+                <div class="w-full h-1.5 bg-white/15 rounded-full overflow-hidden mt-1.5">
+                  <div class="h-full bg-teal-300" style="width: ${histPct}%"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-0.5">
+              <button
+                type="button"
+                id="quick-go-quiz-btn"
+                class="py-2.5 px-3 rounded-2xl bg-emerald-400 text-emerald-950 text-xs font-extrabold hover:bg-emerald-300 transition min-h-[40px]"
+              >
+                ⏱ Ir al Simulacro
+              </button>
+              <button
+                type="button"
+                id="quick-go-fc-btn"
+                class="py-2.5 px-3 rounded-2xl bg-white/15 text-white border border-white/20 text-xs font-extrabold hover:bg-white/25 transition min-h-[40px]"
+              >
+                🃏 Repasar Cards
+              </button>
+            </div>
+          </section>
+
+          <div class="bg-white rounded-2xl border border-slate-200/90 p-2.5 shadow-2xs flex items-center gap-2">
+            <span class="text-slate-400 text-sm pl-1.5">🔍</span>
+            <input
+              id="concept-search-input"
+              type="search"
+              value="${state.conceptSearch.replace(/"/g, '&quot;')}"
+              placeholder="Buscar: tilacoides, dineína, Z, desnaturalización..."
+              aria-label="Buscar conceptos y tablas"
+              class="w-full bg-transparent text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none py-1.5"
+            />
+            ${query ? `
+              <button
+                type="button"
+                id="clear-concept-search-btn"
+                class="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-bold hover:bg-slate-200 shrink-0"
+              >
+                Limpiar
+              </button>
+            ` : ''}
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1" role="tablist" aria-label="Filtrar conceptos por bloque">
+            ${filters.map((f) => {
+              const active = state.conceptTopic === f.id;
+              return `
+                <button
+                  type="button"
+                  data-concept-filter="${f.id}"
+                  class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all min-h-[42px] ${
+                    active
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-emerald-50'
+                  }"
+                >
+                  ${f.label}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          ${visibleTables.length > 0 ? `
+            <section class="bg-white rounded-3xl border border-teal-200/90 p-4 shadow-xs space-y-3">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider text-teal-800">Repaso Exprés (5 min)</span>
+                  <h2 class="text-sm font-extrabold text-slate-900">Tablas Comparativas Clave</h2>
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-100 text-teal-900">
+                  ${visibleTables.length} tablas
+                </span>
+              </div>
+
+              <div class="space-y-3">
+                ${visibleTables.map((tbl) => `
+                  <div class="rounded-2xl border border-slate-200/90 overflow-hidden bg-slate-50/50">
+                    <div class="bg-teal-950 text-white px-3 py-2 text-xs font-bold">
+                      ${tbl.title}
+                    </div>
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-left border-collapse text-[11px]">
+                        <thead>
+                          <tr class="bg-teal-50 text-teal-950 border-b border-slate-200">
+                            ${tbl.headers.map((h) => `<th class="p-2 font-extrabold">${h}</th>`).join('')}
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200/80 bg-white">
+                          ${tbl.rows.map((row) => `
+                            <tr>
+                              ${row.map((cell, cIdx) => `
+                                <td class="p-2 leading-snug ${cIdx === 0 ? 'font-bold text-slate-800 bg-slate-50/70' : 'text-slate-700'}">
+                                  ${cell}
+                                </td>
+                              `).join('')}
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </section>
+          ` : ''}
+
+          ${visibleModules.length > 0 ? visibleModules.map((mod) => `
+            <article class="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs space-y-3.5">
+              <div class="flex items-start justify-between gap-2">
+                <h2 class="text-base font-extrabold text-slate-900 leading-snug">${mod.title}</h2>
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 shrink-0">
+                  ${mod.badge}
+                </span>
+              </div>
+
+              ${SVG_DIAGRAMS[mod.diagramKey] || ''}
+
+              <div class="space-y-2">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Puntos esenciales</h3>
+                <ul class="space-y-2">
+                  ${mod.keyPoints.map((pt) => `
+                    <li class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                      <span class="w-2 h-2 rounded-full bg-emerald-600 mt-1.5 shrink-0"></span>
+                      <span>${pt}</span>
+                    </li>
+                  `).join('')}
+                </ul>
+              </div>
+
+              <!-- Acordeón / sección de ampliación universitaria -->
+              <div class="pt-2 border-t border-slate-100">
+                <details class="group rounded-2xl bg-slate-50 border border-slate-200/80 p-3" ${query ? 'open' : ''}>
+                  <summary class="list-none flex items-center justify-between cursor-pointer text-xs font-extrabold text-teal-900 min-h-[32px]">
+                    <span>+ Ampliación universitaria (profundización)</span>
+                    <span class="text-teal-700 group-open:rotate-45 transition-transform text-base leading-none">+</span>
+                  </summary>
+                  <div class="mt-2.5 space-y-2.5 pt-2 border-t border-slate-200/70">
+                    ${mod.universityExtra.map((ex) => `
+                      <div>
+                        <p class="text-xs font-bold text-slate-900">${ex.subtitle}</p>
+                        <p class="text-xs text-slate-600 leading-relaxed mt-0.5">${ex.text}</p>
+                      </div>
+                    `).join('')}
+                  </div>
+                </details>
+              </div>
+            </article>
+          `).join('') : `
+            <div class="bg-white rounded-3xl border border-slate-200 p-5 text-center space-y-2">
+              <p class="text-sm font-bold text-slate-800">Sin coincidencias para "${state.conceptSearch}"</p>
+              <p class="text-xs text-slate-500">Prueba con otro término o limpia el filtro de búsqueda.</p>
+            </div>
+          `}
+        </div>
+      `;
+
+      populateBilayerSvg();
+
+      document.getElementById('quick-go-quiz-btn')?.addEventListener('click', () => {
+        state.activeTab = 'quiz';
+        saveState();
+        renderApp();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      document.getElementById('quick-go-fc-btn')?.addEventListener('click', () => {
+        state.activeTab = 'flashcards';
+        saveState();
+        renderApp();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      document.getElementById('concept-search-input')?.addEventListener('input', (e) => {
+        state.conceptSearch = e.target.value;
+        saveState();
+        renderApp();
+        const inputEl = document.getElementById('concept-search-input');
+        if (inputEl) {
+          inputEl.focus();
+          const len = inputEl.value.length;
+          inputEl.setSelectionRange(len, len);
+        }
+      });
+
+      document.getElementById('clear-concept-search-btn')?.addEventListener('click', () => {
+        state.conceptSearch = '';
+        saveState();
+        renderApp();
+      });
+
+      container.querySelectorAll('[data-concept-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.conceptTopic = btn.dataset.conceptFilter;
+          saveState();
+          renderApp();
+        });
+      });
+    }
+
+    /* ----------------- PESTAÑA 2: QUIZ INTERACTIVO CON CRONÓMETRO ----------------- */
+    function renderQuizTab(container) {
+      const cfg = state.quizConfig;
+      const topicFilters = [
+        { id: 'all', label: 'Todos los temas' },
+        { id: 'celula', label: 'Célula' },
+        { id: 'quimica_agua', label: 'Química y Agua' },
+        { id: 'biomoleculas_origen', label: 'Biomoléculas y Origen' },
+        { id: 'metabolismo_division', label: 'Metabolismo y División' }
+      ];
+      const topicLabels = {
+        celula: 'Célula',
+        quimica_agua: 'Química y Agua',
+        biomoleculas_origen: 'Biomoléculas y Origen',
+        metabolismo_division: 'Metabolismo y División'
+      };
+      const typeFilters = [
+        { id: 'all', label: 'Todas' },
+        { id: 'mcq', label: 'Opción múltiple' },
+        { id: 'tf', label: 'V / F' },
+        { id: 'short', label: 'Desarrollo' }
+      ];
+
+      if (!cfg.sessionStarted) {
+        stopQuizTimer();
+        const pool = getPoolByFilters();
+        const maxAvailable = pool.length;
+        const effectiveCount = maxAvailable > 0
+          ? Math.max(1, Math.min(maxAvailable, Number(cfg.questionCount) || 20))
+          : 0;
+        const stats = state.quizStats || { sessionsCompleted: 0, totalAnswered: 0, totalCorrect: 0 };
+        const globalAcc = stats.totalAnswered > 0 ? Math.round((stats.totalCorrect / stats.totalAnswered) * 100) : 0;
+
+        container.innerHTML = `
+          <div class="animate-fade-up space-y-4">
+            <section class="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs space-y-4">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Simulacro Personalizable</span>
+                  <h2 class="text-base font-extrabold text-slate-900">Configura tu examen</h2>
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-900">
+                  ${maxAvailable} disp.
+                </span>
+              </div>
+
+              <div class="space-y-1.5">
+                <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">1. Bloque temático</p>
+                <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                  ${topicFilters.map((f) => {
+                    const active = state.quizTopic === f.id;
+                    return `
+                      <button
+                        type="button"
+                        data-quiz-topic="${f.id}"
+                        class="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition min-h-[38px] ${
+                          active ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }"
+                      >
+                        ${f.label}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <div class="space-y-1.5">
+                <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">2. Formato de preguntas</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  ${typeFilters.map((t) => {
+                    const active = state.quizType === t.id;
+                    return `
+                      <button
+                        type="button"
+                        data-quiz-type="${t.id}"
+                        class="py-2 px-2 rounded-xl text-xs font-bold transition min-h-[38px] ${
+                          active ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }"
+                      >
+                        ${t.label}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <div class="space-y-2 pt-1 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                  <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">3. Cantidad de preguntas</p>
+                  <span class="text-xs font-extrabold text-emerald-800">${effectiveCount} de ${maxAvailable}</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1.5">
+                  ${[10, 20, 30, 50, maxAvailable].map((preset, i) => {
+                    const label = i === 4 ? `Todas (${maxAvailable})` : `${preset}`;
+                    const targetVal = preset > maxAvailable ? maxAvailable : preset;
+                    const isSelected = effectiveCount === targetVal && maxAvailable > 0;
+                    return `
+                      <button
+                        type="button"
+                        data-count-preset="${targetVal}"
+                        ${maxAvailable === 0 ? 'disabled' : ''}
+                        class="py-2 px-1 rounded-xl text-[11px] font-extrabold transition min-h-[38px] ${
+                          isSelected
+                            ? 'bg-emerald-700 text-white shadow-2xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-40'
+                        }"
+                      >
+                        ${label}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+                <div class="flex items-center gap-2">
+                  <label for="custom-count-input" class="text-xs font-semibold text-slate-600 shrink-0">Cantidad exacta:</label>
+                  <input
+                    id="custom-count-input"
+                    type="number"
+                    min="1"
+                    max="${Math.max(1, maxAvailable)}"
+                    value="${effectiveCount || 1}"
+                    ${maxAvailable === 0 ? 'disabled' : ''}
+                    class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-900 focus:border-emerald-600 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-2 pt-1 border-t border-slate-100">
+                <div class="flex items-center justify-between">
+                  <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">4. Cronómetro de tiempo</p>
+                  <span class="text-xs font-extrabold text-teal-800">
+                    ${Number(cfg.timerMinutes) > 0 ? `${cfg.timerMinutes} min` : 'Sin límite'}
+                  </span>
+                </div>
+                <div class="grid grid-cols-5 gap-1.5">
+                  ${[
+                    { mins: 0, label: 'Libre' },
+                    { mins: 10, label: '10 m' },
+                    { mins: 20, label: '20 m' },
+                    { mins: 30, label: '30 m' },
+                    { mins: 45, label: '45 m' }
+                  ].map((tp) => {
+                    const isSelected = Number(cfg.timerMinutes) === tp.mins;
+                    return `
+                      <button
+                        type="button"
+                        data-timer-preset="${tp.mins}"
+                        class="py-2 px-1 rounded-xl text-[11px] font-extrabold transition min-h-[38px] ${
+                          isSelected ? 'bg-teal-800 text-white shadow-2xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }"
+                      >
+                        ${tp.label}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+                <div class="flex items-center gap-2">
+                  <label for="custom-timer-input" class="text-xs font-semibold text-slate-600 shrink-0">Minutos (0 = libre):</label>
+                  <input
+                    id="custom-timer-input"
+                    type="number"
+                    min="0"
+                    max="180"
+                    value="${Number(cfg.timerMinutes) || 0}"
+                    class="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-900 focus:border-teal-600 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div class="space-y-2 pt-1 border-t border-slate-100">
+                <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">5. Aleatorización y corrección</p>
+                <div class="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    id="toggle-shuffle-q-btn"
+                    class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border text-xs font-bold transition min-h-[44px] ${
+                      cfg.shuffleQuestions ? 'bg-emerald-50 border-emerald-300 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }"
+                  >
+                    <span>🔀 Aleatorizar orden de preguntas</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      cfg.shuffleQuestions ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+                    }">
+                      ${cfg.shuffleQuestions ? 'SÍ' : 'NO'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="toggle-shuffle-opt-btn"
+                    class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border text-xs font-bold transition min-h-[44px] ${
+                      cfg.shuffleOptions ? 'bg-emerald-50 border-emerald-300 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }"
+                  >
+                    <span>🎲 Aleatorizar alternativas (opción múltiple)</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      cfg.shuffleOptions ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+                    }">
+                      ${cfg.shuffleOptions ? 'SÍ' : 'NO'}
+                    </span>
+                  </button>
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      data-feedback-mode="immediate"
+                      class="py-2.5 px-2.5 rounded-2xl border text-xs font-bold transition min-h-[44px] ${
+                        cfg.feedbackMode === 'immediate' ? 'bg-teal-900 text-white border-teal-900' : 'bg-white text-slate-700 border-slate-200'
+                      }"
+                    >
+                      ⚡ Corregir al responder
+                    </button>
+                    <button
+                      type="button"
+                      data-feedback-mode="end"
+                      class="py-2.5 px-2.5 rounded-2xl border text-xs font-bold transition min-h-[44px] ${
+                        cfg.feedbackMode === 'end' ? 'bg-teal-900 text-white border-teal-900' : 'bg-white text-slate-700 border-slate-200'
+                      }"
+                    >
+                      📝 Modo examen (al final)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                id="start-configured-quiz-btn"
+                ${maxAvailable === 0 ? 'disabled' : ''}
+                class="w-full py-3.5 px-4 rounded-2xl bg-emerald-700 text-white text-sm font-extrabold shadow-sm hover:bg-emerald-800 disabled:opacity-40 transition min-h-[48px]"
+              >
+                ▶ Iniciar simulacro (${effectiveCount} preg.${Number(cfg.timerMinutes) > 0 ? ` • ${cfg.timerMinutes} min` : ''})
+              </button>
+            </section>
+
+            <!-- Historial acumulativo y reinicio seguro -->
+            <section class="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Estadísticas históricas</h3>
+                <span class="text-xs font-extrabold text-emerald-800">${globalAcc}% precisión</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-slate-50 rounded-2xl p-2.5 border border-slate-200/70">
+                  <p class="text-base font-extrabold text-slate-900">${stats.sessionsCompleted}</p>
+                  <p class="text-[10px] font-bold text-slate-500 uppercase">Simulacros</p>
+                </div>
+                <div class="bg-slate-50 rounded-2xl p-2.5 border border-slate-200/70">
+                  <p class="text-base font-extrabold text-slate-900">${stats.totalAnswered}</p>
+                  <p class="text-[10px] font-bold text-slate-500 uppercase">Respondidas</p>
+                </div>
+                <div class="bg-emerald-50 rounded-2xl p-2.5 border border-emerald-200/70">
+                  <p class="text-base font-extrabold text-emerald-800">${stats.totalCorrect}</p>
+                  <p class="text-[10px] font-bold text-emerald-700 uppercase">Aciertos</p>
+                </div>
+              </div>
+              <div class="pt-1">
+                ${confirmResetAllPending ? `
+                  <div class="flex items-center justify-between gap-2 bg-rose-50 border border-rose-200 rounded-2xl p-2.5">
+                    <span class="text-[11px] font-bold text-rose-900">¿Borrar historial y flashcards dominadas?</span>
+                    <div class="flex gap-1.5 shrink-0">
+                      <button type="button" id="confirm-reset-all-btn" class="px-2.5 py-1.5 rounded-xl bg-rose-700 text-white text-[11px] font-extrabold">Sí, borrar</button>
+                      <button type="button" id="cancel-reset-all-btn" class="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-[11px] font-bold">Cancelar</button>
+                    </div>
+                  </div>
+                ` : `
+                  <button
+                    type="button"
+                    id="ask-reset-all-btn"
+                    class="w-full py-2 px-3 rounded-xl border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50 min-h-[38px]"
+                  >
+                    Reiniciar historial y progreso guardado
+                  </button>
+                `}
+              </div>
+            </section>
+          </div>
+        `;
+
+        container.querySelectorAll('[data-quiz-topic]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.quizTopic = btn.dataset.quizTopic;
+            state.quizConfig.reviewOnlyIds = [];
+            saveState();
+            renderApp();
+          });
+        });
+
+        container.querySelectorAll('[data-quiz-type]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.quizType = btn.dataset.quizType;
+            state.quizConfig.reviewOnlyIds = [];
+            saveState();
+            renderApp();
+          });
+        });
+
+        container.querySelectorAll('[data-count-preset]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.quizConfig.questionCount = Number(btn.dataset.countPreset) || 10;
+            saveState();
+            renderApp();
+          });
+        });
+
+        document.getElementById('custom-count-input')?.addEventListener('change', (e) => {
+          const val = Math.max(1, Math.min(Math.max(1, maxAvailable), Number(e.target.value) || 1));
+          state.quizConfig.questionCount = val;
+          saveState();
+          renderApp();
+        });
+
+        container.querySelectorAll('[data-timer-preset]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.quizConfig.timerMinutes = Number(btn.dataset.timerPreset) || 0;
+            saveState();
+            renderApp();
+          });
+        });
+
+        document.getElementById('custom-timer-input')?.addEventListener('change', (e) => {
+          const val = Math.max(0, Math.min(180, Number(e.target.value) || 0));
+          state.quizConfig.timerMinutes = val;
+          saveState();
+          renderApp();
+        });
+
+        document.getElementById('toggle-shuffle-q-btn')?.addEventListener('click', () => {
+          state.quizConfig.shuffleQuestions = !state.quizConfig.shuffleQuestions;
+          saveState();
+          renderApp();
+        });
+
+        document.getElementById('toggle-shuffle-opt-btn')?.addEventListener('click', () => {
+          state.quizConfig.shuffleOptions = !state.quizConfig.shuffleOptions;
+          saveState();
+          renderApp();
+        });
+
+        container.querySelectorAll('[data-feedback-mode]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.quizConfig.feedbackMode = btn.dataset.feedbackMode;
+            saveState();
+            renderApp();
+          });
+        });
+
+        document.getElementById('start-configured-quiz-btn')?.addEventListener('click', () => {
+          startConfiguredQuiz();
+        });
+
+        document.getElementById('ask-reset-all-btn')?.addEventListener('click', () => {
+          confirmResetAllPending = true;
+          renderApp();
+        });
+
+        document.getElementById('cancel-reset-all-btn')?.addEventListener('click', () => {
+          confirmResetAllPending = false;
+          renderApp();
+        });
+
+        document.getElementById('confirm-reset-all-btn')?.addEventListener('click', () => {
+          confirmResetAllPending = false;
+          state = structuredClone(defaultState);
+          saveState();
+          renderApp();
+          showToast('Progreso e historial reiniciados.');
+        });
+        return;
+      }
+
+      const idToQuestion = new Map(QUIZ_QUESTIONS.map((q) => [q.id, q]));
+      const filtered = (cfg.activeQuestionIds || []).map((id) => idToQuestion.get(id)).filter(Boolean);
+
+      if (filtered.length === 0) {
+        openQuizConfigurator();
+        return;
+      }
+
+      if (cfg.sessionFinished) {
+        stopQuizTimer();
+        const totalQ = filtered.length;
+        const answeredCount = filtered.filter((item) => Boolean(state.quizAnswers[item.id])).length;
+        const correctCount = filtered.filter((item) => Boolean(state.quizAnswers[item.id]?.isCorrect)).length;
+        const failedIds = filtered.filter((item) => !state.quizAnswers[item.id]?.isCorrect).map((item) => item.id);
+        const pct = totalQ > 0 ? Math.round((correctCount / totalQ) * 100) : 0;
+
+        // Diagnóstico por bloque temático
+        const byTopic = {};
+        filtered.forEach((item) => {
+          if (!byTopic[item.topic]) {
+            byTopic[item.topic] = { total: 0, correct: 0 };
+          }
+          byTopic[item.topic].total += 1;
+          if (state.quizAnswers[item.id]?.isCorrect) {
+            byTopic[item.topic].correct += 1;
+          }
+        });
+
+        container.innerHTML = `
+          <div class="animate-fade-up space-y-4">
+            <section class="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs text-center space-y-3">
+              <span class="inline-block px-3 py-1 rounded-full text-xs font-extrabold ${
+                cfg.timedOut ? 'bg-rose-100 text-rose-900' : 'bg-emerald-100 text-emerald-900'
+              }">
+                ${cfg.timedOut ? '⏱ Tiempo agotado' : '✅ Simulacro completado'}
+              </span>
+              <h2 class="text-2xl font-extrabold text-slate-900">${correctCount} / ${totalQ} (${pct}%)</h2>
+              <p class="text-xs text-slate-600">
+                Respondidas: <strong class="text-slate-900">${answeredCount}</strong> de ${totalQ} preguntas
+                ${cfg.remainingSeconds !== null ? ` • Tiempo restante: <strong class="text-slate-900">${formatClock(cfg.remainingSeconds)}</strong>` : ''}
+              </p>
+
+              <!-- Diagnóstico por bloque temático -->
+              <div class="pt-2 border-t border-slate-100 text-left space-y-2">
+                <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Diagnóstico por tema</p>
+                <div class="space-y-2">
+                  ${Object.entries(byTopic).map(([tKey, tData]) => {
+                    const tPct = Math.round((tData.correct / tData.total) * 100);
+                    return `
+                      <div>
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-800 mb-1">
+                          <span>${topicLabels[tKey] || tKey}</span>
+                          <span>${tData.correct}/${tData.total} (${tPct}%)</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div class="h-full ${tPct >= 70 ? 'bg-emerald-600' : 'bg-amber-500'}" style="width: ${tPct}%"></div>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              ${failedIds.length > 0 ? `
+                <button
+                  type="button"
+                  id="practice-failed-quiz-btn"
+                  class="w-full py-3 px-4 rounded-2xl bg-amber-600 text-white text-xs font-extrabold hover:bg-amber-700 transition min-h-[44px]"
+                >
+                  🎯 Practicar solo las falladas / sin responder (${failedIds.length})
+                </button>
+              ` : ''}
+
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  id="repeat-same-config-btn"
+                  class="py-3 px-3 rounded-2xl bg-emerald-700 text-white text-xs font-extrabold hover:bg-emerald-800 transition min-h-[44px]"
+                >
+                  🔄 Nuevo sorteo
+                </button>
+                <button
+                  type="button"
+                  id="back-to-config-btn"
+                  class="py-3 px-3 rounded-2xl bg-slate-100 text-slate-800 text-xs font-extrabold hover:bg-slate-200 transition min-h-[44px]"
+                >
+                  ⚙️ Configurar otro
+                </button>
+              </div>
+            </section>
+
+            <div class="space-y-3">
+              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 px-1">Revisión detallada</h3>
+              ${filtered.map((item, idx) => {
+                const ans = state.quizAnswers[item.id];
+                const isOk = Boolean(ans?.isCorrect);
+                return `
+                  <article class="bg-white rounded-2xl border ${isOk ? 'border-emerald-200' : 'border-rose-200'} p-3.5 space-y-2 shadow-2xs">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-[11px] font-extrabold text-slate-500">#${idx + 1} • ${topicLabels[item.topic] || ''}</span>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        isOk ? 'bg-emerald-100 text-emerald-900' : 'bg-rose-100 text-rose-900'
+                      }">
+                        ${ans ? (isOk ? 'Correcta' : 'A repasar') : 'Sin responder'}
+                      </span>
+                    </div>
+                    <p class="text-xs sm:text-sm font-bold text-slate-900">${item.question}</p>
+                    ${ans?.userText ? `<p class="text-xs text-slate-600">Tu respuesta: <span class="font-semibold text-slate-800">${ans.userText}</span></p>` : ''}
+                    <p class="text-xs text-emerald-900 bg-emerald-50 rounded-xl p-2.5 font-semibold">
+                      Respuesta correcta: ${item.answer}
+                    </p>
+                    <p class="text-xs text-slate-600 leading-relaxed">${item.explanation}</p>
+                  </article>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+
+        document.getElementById('practice-failed-quiz-btn')?.addEventListener('click', () => {
+          startConfiguredQuiz(failedIds);
+        });
+        document.getElementById('repeat-same-config-btn')?.addEventListener('click', () => {
+          startConfiguredQuiz();
+        });
+        document.getElementById('back-to-config-btn')?.addEventListener('click', openQuizConfigurator);
+        return;
+      }
+
+      if (state.quizIndex >= filtered.length) {
+        state.quizIndex = 0;
+      }
+
+      const q = filtered[state.quizIndex];
+      const savedAnswer = state.quizAnswers[q.id];
+      const answeredCount = filtered.filter((item) => Boolean(state.quizAnswers[item.id])).length;
+      const correctCount = filtered.filter((item) => Boolean(state.quizAnswers[item.id]?.isCorrect)).length;
+      const progressPct = Math.round(((state.quizIndex + 1) / filtered.length) * 100);
+      const showImmediateFeedback = Boolean(savedAnswer) && cfg.feedbackMode === 'immediate';
+      const displayOptions = cfg.shuffledOptionsMap?.[q.id] || q.options || [];
+
+      const typeBadgeLabel =
+        q.type === 'mcq' ? 'Opción múltiple' : q.type === 'tf' ? 'Verdadero / Falso' : 'Desarrollo corto';
+
+      container.innerHTML = `
+        <div class="animate-fade-up space-y-3.5">
+          ${cfg.remainingSeconds !== null ? `
+            <div id="quiz-timer-box" class="rounded-2xl px-3.5 py-2.5 border flex items-center justify-between bg-emerald-50/90 border-emerald-200 text-emerald-950">
+              <div class="flex items-center gap-2 text-xs font-bold">
+                <span>⏱ Tiempo restante</span>
+              </div>
+              <span id="quiz-live-clock" class="text-base font-extrabold tabular-nums">${formatClock(cfg.remainingSeconds)}</span>
+            </div>
+          ` : ''}
+
+          <div class="bg-white rounded-3xl border border-slate-200/90 p-3.5 shadow-2xs space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-700">Pregunta ${state.quizIndex + 1} de ${filtered.length}</span>
+              <span class="font-bold text-emerald-800">
+                ${cfg.feedbackMode === 'immediate' ? `Aciertos: ${correctCount}/${answeredCount}` : `Respondidas: ${answeredCount}/${filtered.length}`}
+              </span>
+            </div>
+
+            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-emerald-600 transition-all duration-300" style="width: ${progressPct}%"></div>
+            </div>
+
+            <!-- Mapa táctil de navegación rápida entre preguntas -->
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar py-1" aria-label="Saltar a pregunta">
+              ${filtered.map((item, idx) => {
+                const ans = state.quizAnswers[item.id];
+                const isCurrent = idx === state.quizIndex;
+                let pillClass = 'bg-slate-100 text-slate-700 border-slate-200';
+                if (ans) {
+                  if (cfg.feedbackMode === 'immediate') {
+                    pillClass = ans.isCorrect
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : 'bg-amber-100 text-amber-950 border-amber-300';
+                  } else {
+                    pillClass = 'bg-teal-100 text-teal-900 border-teal-300';
+                  }
+                }
+                if (isCurrent) {
+                  pillClass += ' ring-2 ring-emerald-700 font-extrabold';
+                }
+                return `
+                  <button
+                    type="button"
+                    data-jump-quiz="${idx}"
+                    class="w-8 h-8 rounded-xl border text-[11px] font-bold shrink-0 flex items-center justify-center transition ${pillClass}"
+                  >
+                    ${idx + 1}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <div class="flex items-center justify-between gap-2 pt-0.5">
+              <button
+                type="button"
+                id="reconfigure-quiz-btn"
+                class="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200 min-h-[34px]"
+              >
+                ⚙️ Configurar
+              </button>
+              <button
+                type="button"
+                id="finish-quiz-now-btn"
+                class="px-3 py-1.5 rounded-xl bg-teal-900 text-white text-[11px] font-bold hover:bg-teal-950 min-h-[34px]"
+              >
+                Finalizar y corregir (${answeredCount}/${filtered.length})
+              </button>
+            </div>
+          </div>
+
+          <article class="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs space-y-4">
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-100 text-teal-900">
+                ${typeBadgeLabel}
+              </span>
+              <span class="text-[11px] font-semibold text-slate-400">Banco #${q.id}</span>
+            </div>
+
+            <h2 class="text-base font-extrabold text-slate-900 leading-snug">${q.question}</h2>
+
+            ${q.type === 'mcq' || q.type === 'tf' ? `
+              <div class="space-y-2.5">
+                ${displayOptions.map((opt, idx) => {
+                  const letter = String.fromCharCode(65 + idx);
+                  const isChosen = savedAnswer && savedAnswer.selected === opt;
+                  const isRight = opt === q.answer;
+
+                  let btnClass = 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-emerald-50/70 hover:border-emerald-300';
+                  if (showImmediateFeedback) {
+                    if (isRight) {
+                      btnClass = 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-1 ring-emerald-500';
+                    } else if (isChosen && !isRight) {
+                      btnClass = 'bg-rose-50 border-rose-400 text-rose-950';
+                    } else {
+                      btnClass = 'bg-slate-50/70 border-slate-200 text-slate-500';
+                    }
+                  } else if (isChosen) {
+                    btnClass = 'bg-teal-50 border-teal-600 text-teal-950 ring-1 ring-teal-600';
+                  }
+
+                  return `
+                    <button
+                      type="button"
+                      data-quiz-option="${encodeURIComponent(opt)}"
+                      class="w-full text-left p-3.5 rounded-2xl border text-xs sm:text-sm font-semibold transition-all flex items-start gap-3 min-h-[48px] ${btnClass}"
+                    >
+                      <span class="w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-extrabold shrink-0">
+                        ${q.type === 'mcq' ? letter : (opt === 'Verdadero' ? 'V' : 'F')}
+                      </span>
+                      <span class="leading-snug pt-0.5">${opt}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            ` : `
+              <div class="space-y-3">
+                <label for="short-answer-input" class="block text-xs font-bold text-slate-600">
+                  Redacta tu respuesta breve antes de revelar la respuesta modelo:
+                </label>
+                <textarea
+                  id="short-answer-input"
+                  rows="3"
+                  placeholder="Escribe aquí los conceptos clave de tu respuesta..."
+                  class="w-full rounded-2xl border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 focus:border-emerald-600 focus:bg-white focus:outline-none"
+                >${savedAnswer?.userText || ''}</textarea>
+
+                <button
+                  type="button"
+                  id="reveal-short-answer-btn"
+                  class="w-full py-3 px-4 rounded-2xl bg-emerald-700 text-white text-xs font-extrabold shadow-xs hover:bg-emerald-800 transition min-h-[46px]"
+                >
+                  ${savedAnswer ? 'Actualizar respuesta guardada' : (cfg.feedbackMode === 'immediate' ? 'Comprobar y ver respuesta modelo' : 'Guardar respuesta')}
+                </button>
+              </div>
+            `}
+
+            ${showImmediateFeedback ? `
+              <div class="rounded-2xl p-3.5 border ${
+                savedAnswer.isCorrect
+                  ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
+                  : 'bg-amber-50/90 border-amber-300 text-amber-950'
+              } space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-extrabold uppercase tracking-wider">
+                    ${savedAnswer.isCorrect ? '✓ Respuesta correcta' : '✕ Revisa este concepto'}
+                  </span>
+                  ${q.type === 'short' ? `
+                    <div class="flex gap-1.5">
+                      <button type="button" data-self-grade="true" class="px-2.5 py-1 rounded-lg bg-emerald-700 text-white text-[11px] font-bold">La supe</button>
+                      <button type="button" data-self-grade="false" class="px-2.5 py-1 rounded-lg bg-amber-700 text-white text-[11px] font-bold">Repasar</button>
+                    </div>
+                  ` : ''}
+                </div>
+                <p class="text-xs font-bold">Respuesta esperada: ${q.answer}</p>
+                <p class="text-xs leading-relaxed opacity-90">${q.explanation}</p>
+              </div>
+            ` : ''}
+
+            ${Boolean(savedAnswer) && cfg.feedbackMode === 'end' ? `
+              <div class="rounded-2xl px-3.5 py-2.5 bg-teal-50 border border-teal-200 text-teal-950 text-xs font-semibold">
+                ✓ Respuesta registrada. Se corregirá al finalizar el simulacro.
+              </div>
+            ` : ''}
+          </article>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              id="prev-quiz-btn"
+              class="py-3 px-4 rounded-2xl bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-100 transition min-h-[46px]"
+            >
+              ← Anterior
+            </button>
+            <button
+              type="button"
+              id="next-quiz-btn"
+              class="py-3 px-4 rounded-2xl bg-emerald-800 text-white text-xs font-extrabold hover:bg-emerald-900 transition min-h-[46px]"
+            >
+              ${state.quizIndex === filtered.length - 1 ? 'Finalizar examen ✓' : 'Siguiente →'}
+            </button>
+          </div>
+        </div>
+      `;
+
+      ensureQuizTimerRunning();
+
+      container.querySelectorAll('[data-jump-quiz]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.quizIndex = Number(btn.dataset.jumpQuiz) || 0;
+          saveState();
+          renderApp();
+        });
+      });
+
+      document.getElementById('reconfigure-quiz-btn')?.addEventListener('click', openQuizConfigurator);
+
+      document.getElementById('finish-quiz-now-btn')?.addEventListener('click', () => {
+        finishQuizSession(false);
+      });
+
+      container.querySelectorAll('[data-quiz-option]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const chosen = decodeURIComponent(btn.dataset.quizOption);
+          state.quizAnswers[q.id] = {
+            selected: chosen,
+            userText: chosen,
+            isCorrect: chosen === q.answer
+          };
+          saveState();
+          renderApp();
+        });
+      });
+
+      document.getElementById('reveal-short-answer-btn')?.addEventListener('click', () => {
+        const inputEl = document.getElementById('short-answer-input');
+        const userText = (inputEl?.value || '').trim();
+        const normalized = userText.toLowerCase();
+        const hits = (q.keywords || []).filter((kw) => normalized.includes(kw.toLowerCase())).length;
+        const autoPass = hits >= Math.min(2, (q.keywords || []).length);
+
+        state.quizAnswers[q.id] = {
+          userText,
+          isCorrect: autoPass
+        };
+        saveState();
+        renderApp();
+        if (cfg.feedbackMode === 'end') {
+          showToast('Respuesta corta guardada.');
+        }
+      });
+
+      container.querySelectorAll('[data-self-grade]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (!state.quizAnswers[q.id]) return;
+          state.quizAnswers[q.id].isCorrect = btn.dataset.selfGrade === 'true';
+          saveState();
+          renderApp();
+        });
+      });
+
+      document.getElementById('prev-quiz-btn')?.addEventListener('click', () => {
+        state.quizIndex = (state.quizIndex - 1 + filtered.length) % filtered.length;
+        saveState();
+        renderApp();
+      });
+
+      document.getElementById('next-quiz-btn')?.addEventListener('click', () => {
+        if (state.quizIndex === filtered.length - 1) {
+          finishQuizSession(false);
+        } else {
+          state.quizIndex += 1;
+          saveState();
+          renderApp();
+        }
+      });
+    }
+
+    /* ----------------- PESTAÑA 3: FLASHCARDS 3D ----------------- */
+    function renderFlashcardsTab(container) {
+      const topicFilters = [
+        { id: 'all', label: 'Todas' },
+        { id: 'celula', label: 'Célula' },
+        { id: 'quimica_agua', label: 'Química y Agua' },
+        { id: 'biomoleculas_origen', label: 'Biomoléculas y Origen' },
+        { id: 'metabolismo_division', label: 'Metabolismo y División' }
+      ];
+      const topicLabels = {
+        celula: 'Célula',
+        quimica_agua: 'Química y Agua',
+        biomoleculas_origen: 'Biomoléculas y Origen',
+        metabolismo_division: 'Metabolismo y División'
+      };
+
+      const idToCard = new Map(FLASHCARDS.map((c) => [c.id, c]));
+      const visibleIds = getFilteredFlashcardIds();
+
+      if (visibleIds.length === 0) {
+        container.innerHTML = `
+          <div class="animate-fade-up space-y-4">
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              ${topicFilters.map((f) => {
+                const active = state.flashcardTopic === f.id;
+                return `
+                  <button
+                    type="button"
+                    data-fc-topic="${f.id}"
+                    class="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition min-h-[38px] ${
+                      active ? 'bg-emerald-700 text-white' : 'bg-white border border-slate-200 text-slate-700'
+                    }"
+                  >
+                    ${f.label}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <div class="bg-white rounded-3xl border border-emerald-200 p-6 text-center space-y-3 shadow-xs">
+              <p class="text-base font-extrabold text-emerald-950">¡Todas las tarjetas de este filtro están dominadas!</p>
+              <p class="text-xs text-slate-600">Desactiva "Solo pendientes" o cambia el bloque temático para seguir repasando.</p>
+              <button
+                type="button"
+                id="disable-unmastered-filter-btn"
+                class="py-2.5 px-4 rounded-2xl bg-emerald-700 text-white text-xs font-extrabold min-h-[42px]"
+              >
+                Ver todas las tarjetas
+              </button>
+            </div>
+          </div>
+        `;
+
+        container.querySelectorAll('[data-fc-topic]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.flashcardTopic = btn.dataset.fcTopic;
+            state.flashcardIndex = 0;
+            state.flashcardFlipped = false;
+            saveState();
+            renderApp();
+          });
+        });
+
+        document.getElementById('disable-unmastered-filter-btn')?.addEventListener('click', () => {
+          state.flashcardOnlyUnmastered = false;
+          state.flashcardIndex = 0;
+          state.flashcardFlipped = false;
+          saveState();
+          renderApp();
+        });
+        return;
+      }
+
+      if (state.flashcardIndex >= visibleIds.length) {
+        state.flashcardIndex = 0;
+      }
+
+      const currentCardId = visibleIds[state.flashcardIndex];
+      const card = idToCard.get(currentCardId) || FLASHCARDS[0];
+      const isMastered = state.masteredCards.includes(card.id);
+      const isRandom = Boolean(state.flashcardShuffledMode);
+
+      container.innerHTML = `
+        <div class="animate-fade-up space-y-3.5">
+          <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            ${topicFilters.map((f) => {
+              const active = state.flashcardTopic === f.id;
+              return `
+                <button
+                  type="button"
+                  data-fc-topic="${f.id}"
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition min-h-[36px] ${
+                    active ? 'bg-emerald-700 text-white' : 'bg-white border border-slate-200 text-slate-700'
+                  }"
+                >
+                  ${f.label}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200/90 p-3 space-y-2.5 shadow-2xs">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-700">
+                  Tarjeta ${state.flashcardIndex + 1} de ${visibleIds.length}
+                </span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  isRandom ? 'bg-teal-100 text-teal-900' : 'bg-slate-100 text-slate-600'
+                }">
+                  ${isRandom ? 'Aleatoria' : 'Ordenada'}
+                </span>
+              </div>
+              <div class="flex gap-1.5">
+                <button
+                  type="button"
+                  id="shuffle-cards-btn"
+                  class="px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition min-h-[36px]"
+                >
+                  🔀 Aleatorizar
+                </button>
+                <button
+                  type="button"
+                  id="order-cards-btn"
+                  class="px-2.5 py-1.5 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 hover:bg-slate-200 transition min-h-[36px]"
+                >
+                  1–${FLASHCARDS.length}
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+              <button
+                type="button"
+                id="toggle-unmastered-btn"
+                class="px-3 py-1.5 rounded-xl text-[11px] font-bold transition min-h-[34px] ${
+                  state.flashcardOnlyUnmastered
+                    ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                    : 'bg-slate-100 text-slate-700'
+                }"
+              >
+                ${state.flashcardOnlyUnmastered ? '✓ Mostrando solo pendientes' : 'Filtrar solo pendientes'}
+              </button>
+
+              ${state.masteredCards.length > 0 ? (
+                confirmResetMasteryPending ? `
+                  <div class="flex items-center gap-1">
+                    <button type="button" id="confirm-reset-mastery-btn" class="px-2 py-1 rounded-lg bg-rose-700 text-white text-[10px] font-extrabold">Confirmar</button>
+                    <button type="button" id="cancel-reset-mastery-btn" class="px-2 py-1 rounded-lg bg-slate-200 text-slate-700 text-[10px] font-bold">No</button>
+                  </div>
+                ` : `
+                  <button
+                    type="button"
+                    id="ask-reset-mastery-btn"
+                    class="px-2.5 py-1 rounded-xl text-[11px] font-bold text-slate-500 hover:text-rose-700"
+                  >
+                    Reiniciar dominio
+                  </button>
+                `
+              ) : ''}
+            </div>
+          </div>
+
+          <div
+            id="flashcard-flip-area"
+            role="button"
+            tabindex="0"
+            aria-label="Tarjeta de estudio interactiva. Toca para voltear."
+            class="perspective-1000 w-full cursor-pointer select-none"
+          >
+            <div class="relative w-full min-h-[260px] transition-transform duration-500 preserve-3d ${
+              state.flashcardFlipped ? 'rotate-y-180' : ''
+            }">
+              <div class="backface-hidden w-full min-h-[260px] rounded-3xl bg-white border-2 ${
+                isMastered ? 'border-emerald-500' : 'border-slate-200'
+              } p-6 shadow-md flex flex-col justify-between">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-900">
+                    Frente • ${topicLabels[card.topic] || ''} #${card.id}
+                  </span>
+                  ${isMastered ? '<span class="text-xs font-extrabold text-emerald-700">✓ Dominada</span>' : ''}
+                </div>
+
+                <div class="my-4">
+                  <p class="text-lg font-extrabold text-slate-900 leading-snug">${card.front}</p>
+                </div>
+
+                <p class="text-xs font-semibold text-emerald-700">Toca para voltear • Desliza ← → para cambiar</p>
+              </div>
+
+              <div class="backface-hidden rotate-y-180 absolute inset-0 w-full min-h-[260px] rounded-3xl bg-emerald-950 text-white p-6 shadow-md flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-800 text-emerald-200">
+                    Dorso • Definición clave
+                  </span>
+                  <span class="text-xs font-bold text-emerald-300">#${card.id}</span>
+                </div>
+
+                <div class="my-4">
+                  <p class="text-base font-semibold leading-relaxed text-white">${card.back}</p>
+                </div>
+
+                <p class="text-xs font-medium text-emerald-300">Toca nuevamente para volver al frente</p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            id="toggle-mastered-btn"
+            class="w-full py-3.5 px-4 rounded-2xl text-xs font-extrabold transition-all min-h-[48px] ${
+              isMastered
+                ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                : 'bg-emerald-700 text-white shadow-xs hover:bg-emerald-800'
+            }"
+          >
+            ${isMastered ? '✓ Tarjeta dominada (tocar para desmarcar)' : 'Marcar tarjeta como dominada'}
+          </button>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              id="prev-card-btn"
+              class="py-3 px-4 rounded-2xl bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-100 transition min-h-[46px]"
+            >
+              ← Anterior
+            </button>
+            <button
+              type="button"
+              id="next-card-btn"
+              class="py-3 px-4 rounded-2xl bg-slate-900 text-white text-xs font-extrabold hover:bg-slate-800 transition min-h-[46px]"
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      `;
+
+      container.querySelectorAll('[data-fc-topic]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.flashcardTopic = btn.dataset.fcTopic;
+          state.flashcardIndex = 0;
+          state.flashcardFlipped = false;
+          saveState();
+          renderApp();
+        });
+      });
+
+      document.getElementById('toggle-unmastered-btn')?.addEventListener('click', () => {
+        state.flashcardOnlyUnmastered = !state.flashcardOnlyUnmastered;
+        state.flashcardIndex = 0;
+        state.flashcardFlipped = false;
+        saveState();
+        renderApp();
+      });
+
+      document.getElementById('ask-reset-mastery-btn')?.addEventListener('click', () => {
+        confirmResetMasteryPending = true;
+        renderApp();
+      });
+
+      document.getElementById('cancel-reset-mastery-btn')?.addEventListener('click', () => {
+        confirmResetMasteryPending = false;
+        renderApp();
+      });
+
+      document.getElementById('confirm-reset-mastery-btn')?.addEventListener('click', () => {
+        confirmResetMasteryPending = false;
+        state.masteredCards = [];
+        state.flashcardIndex = 0;
+        state.flashcardFlipped = false;
+        saveState();
+        renderApp();
+        showToast('Dominio de flashcards reiniciado.');
+      });
+
+      document.getElementById('flashcard-flip-area')?.addEventListener('click', () => {
+        state.flashcardFlipped = !state.flashcardFlipped;
+        saveState();
+        renderApp();
+      });
+
+      // Soporte de deslizamiento táctil (swipe izquierda/derecha) en la flashcard
+      let touchStartX = 0;
+      const flipEl = document.getElementById('flashcard-flip-area');
+      flipEl?.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0]?.clientX || 0;
+      }, { passive: true });
+      flipEl?.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0]?.clientX || 0;
+        const deltaX = touchEndX - touchStartX;
+        if (Math.abs(deltaX) > 48) {
+          if (deltaX < 0) {
+            state.flashcardIndex = (state.flashcardIndex + 1) % visibleIds.length;
+          } else {
+            state.flashcardIndex = (state.flashcardIndex - 1 + visibleIds.length) % visibleIds.length;
+          }
+          state.flashcardFlipped = false;
+          saveState();
+          renderApp();
+        }
+      }, { passive: true });
+
+      document.getElementById('toggle-mastered-btn')?.addEventListener('click', () => {
+        if (state.masteredCards.includes(card.id)) {
+          state.masteredCards = state.masteredCards.filter((id) => id !== card.id);
+        } else {
+          state.masteredCards.push(card.id);
+          showToast('¡Tarjeta marcada como dominada!');
+        }
+        saveState();
+        renderApp();
+      });
+
+      document.getElementById('prev-card-btn')?.addEventListener('click', () => {
+        state.flashcardIndex = (state.flashcardIndex - 1 + visibleIds.length) % visibleIds.length;
+        state.flashcardFlipped = false;
+        saveState();
+        renderApp();
+      });
+
+      document.getElementById('next-card-btn')?.addEventListener('click', () => {
+        state.flashcardIndex = (state.flashcardIndex + 1) % visibleIds.length;
+        state.flashcardFlipped = false;
+        saveState();
+        renderApp();
+      });
+
+      document.getElementById('shuffle-cards-btn')?.addEventListener('click', () => {
+        state.flashcardOrder = shuffleArray(FLASHCARDS.map((f) => f.id));
+        state.flashcardShuffledMode = true;
+        state.flashcardIndex = 0;
+        state.flashcardFlipped = false;
+        saveState();
+        renderApp();
+        showToast(`Mazo de ${FLASHCARDS.length} flashcards aleatorizado.`);
+      });
+
+      document.getElementById('order-cards-btn')?.addEventListener('click', () => {
+        state.flashcardOrder = FLASHCARDS.map((f) => f.id);
+        state.flashcardShuffledMode = false;
+        state.flashcardIndex = 0;
+        state.flashcardFlipped = false;
+        saveState();
+        renderApp();
+        showToast('Mazo ordenado del 1 al 36.');
+      });
+    }
+
+    /* ----------------- PESTAÑA 4: ERRORES COMUNES Y TRAMPAS ----------------- */
+    function renderTrampasTab(container) {
+      const query = (state.trapSearch || '').trim().toLowerCase();
+      const filteredTraps = EXAM_TRAPS.filter((trap) => {
+        if (!query) return true;
+        const haystack = [trap.myth, trap.reality, trap.tip].join(' ').toLowerCase();
+        return haystack.includes(query);
+      });
+
+      container.innerHTML = `
+        <div class="animate-fade-up space-y-3.5">
+          <div class="bg-amber-950 text-amber-50 rounded-3xl p-4 shadow-xs">
+            <h2 class="text-base font-extrabold">Trampas típicas de examen</h2>
+            <p class="text-xs text-amber-200/90 mt-1 leading-relaxed">
+              Repasa estas ${EXAM_TRAPS.length} confusiones frecuentes antes de rendir para evitar errores de lectura o concepto.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200/90 p-2.5 shadow-2xs flex items-center gap-2">
+            <span class="text-slate-400 text-sm pl-1.5">🔍</span>
+            <input
+              id="trap-search-input"
+              type="search"
+              value="${state.trapSearch.replace(/"/g, '&quot;')}"
+              placeholder="Filtrar trampas: mitosis, cohesión, O₂, Z..."
+              aria-label="Buscar trampas de examen"
+              class="w-full bg-transparent text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none py-1.5"
+            />
+            ${query ? `
+              <button
+                type="button"
+                id="clear-trap-search-btn"
+                class="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-bold hover:bg-slate-200 shrink-0"
+              >
+                Limpiar
+              </button>
+            ` : ''}
+          </div>
+
+          ${filteredTraps.length > 0 ? filteredTraps.map((trap) => `
+            <article class="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs space-y-2.5">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-rose-100 text-rose-800 text-xs font-extrabold flex items-center justify-center shrink-0">
+                  !
+                </span>
+                <span class="text-[11px] font-extrabold uppercase tracking-wider text-rose-700">
+                  Confusión frecuente #${trap.id}
+                </span>
+              </div>
+
+              <p class="text-sm font-extrabold text-slate-900 leading-snug">
+                ✕ ${trap.myth}
+              </p>
+
+              <p class="text-xs text-slate-700 leading-relaxed bg-slate-50 rounded-2xl p-3 border border-slate-200/70">
+                <strong class="text-emerald-800">✓ Lo correcto:</strong> ${trap.reality}
+              </p>
+
+              <div class="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200/80 text-xs font-bold text-emerald-950">
+                💡 ${trap.tip}
+              </div>
+            </article>
+          `).join('') : `
+            <div class="bg-white rounded-3xl border border-slate-200 p-5 text-center space-y-2">
+              <p class="text-sm font-bold text-slate-800">Sin trampas que coincidan con "${state.trapSearch}"</p>
+            </div>
+          `}
+        </div>
+      `;
+
+      document.getElementById('trap-search-input')?.addEventListener('input', (e) => {
+        state.trapSearch = e.target.value;
+        saveState();
+        renderApp();
+        const inputEl = document.getElementById('trap-search-input');
+        if (inputEl) {
+          inputEl.focus();
+          const len = inputEl.value.length;
+          inputEl.setSelectionRange(len, len);
+        }
+      });
+
+      document.getElementById('clear-trap-search-btn')?.addEventListener('click', () => {
+        state.trapSearch = '';
+        saveState();
+        renderApp();
+      });
+    }
+
+    /* =========================================================================
+       8. ORQUESTACIÓN E INICIALIZACIÓN DE LA APP
+       ========================================================================= */
+    function renderApp() {
+      const container = document.getElementById('main-content');
+      if (!container) return;
+
+      updateHeader();
+      updateNavButtons();
+
+      if (state.activeTab === 'conceptos') {
+        stopQuizTimer();
+        renderConceptosTab(container);
+      } else if (state.activeTab === 'quiz') {
+        renderQuizTab(container);
+      } else if (state.activeTab === 'flashcards') {
+        stopQuizTimer();
+        renderFlashcardsTab(container);
+      } else if (state.activeTab === 'trampas') {
+        stopQuizTimer();
+        renderTrampasTab(container);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.nav-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.activeTab = btn.dataset.tab;
+          saveState();
+          renderApp();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      });
+
+      renderApp();
+    });
+  </script>
+</body>
+</html>
